@@ -89,11 +89,11 @@ const CATALOG_LS = {
     { id: 'b_dart', name: '441ci Tall-Deck Iron', displacement: 441, bore: 4.185, stroke: 4.0, compression: 9.2, maxBoost: 45, cost: 8500, brand: 'Dart', shopSearch: 'Dart LS Next iron tall deck engine block', notes: 'Max LS platform. Borderline insane.' },
   ],
   heads: [
-    { id: 'h_317', name: 'Cathedral Port Truck Heads', flow: 240, chamber: 71, compression: 0.5, springRate: 'stock', cost: 400, brand: 'GM OEM', shopSearch: '317 cathedral port LS truck cylinder heads', portStyle: 'cathedral', notes: 'Junkyard find. Decent flow.' },
-    { id: 'h_243', name: 'Cathedral Port LS6-spec', flow: 265, chamber: 64, compression: 1.2, springRate: 'mild', cost: 700, brand: 'GM OEM', shopSearch: '243 LS6 cathedral port cylinder heads', portStyle: 'cathedral', notes: 'Better chambers. Real power bump.' },
-    { id: 'h_ls3', name: 'Rectangle Port L92/LS3-spec', flow: 315, chamber: 68, compression: 0.8, springRate: 'mild', cost: 1100, brand: 'GM OEM', shopSearch: 'L92 LS3 rectangle port cylinder heads', portStyle: 'rectangle', notes: 'LS3 spec. Standard baseline.' },
-    { id: 'h_btr', name: 'CNC Stage 3 Rectangle Port', flow: 360, chamber: 64, compression: 1.4, springRate: 'aggressive', cost: 2400, brand: 'Brian Tooley Racing', shopSearch: 'BTR CNC Stage 3 LS rectangle port cylinder heads', portStyle: 'rectangle', notes: 'Ported. Big valves. Needs stiff springs.' },
-    { id: 'h_race', name: 'Symmetrical Port Race Heads', flow: 410, chamber: 60, compression: 1.8, springRate: 'race', cost: 4200, brand: 'Trick Flow', shopSearch: 'Trick Flow LS symmetrical port race cylinder heads', portStyle: 'symmetrical', notes: 'Full race. Custom intake required.' },
+    { id: 'h_317', name: 'Cathedral Port Truck Heads', flow: 240, chamber: 71, compression: -0.3, springRate: 'stock', cost: 400, brand: 'GM OEM', shopSearch: '317 cathedral port LS truck cylinder heads', portStyle: 'cathedral', notes: 'Junkyard find. Decent flow.' },
+    { id: 'h_243', name: 'Cathedral Port LS6-spec', flow: 265, chamber: 64, compression: 0.4, springRate: 'mild', cost: 700, brand: 'GM OEM', shopSearch: '243 LS6 cathedral port cylinder heads', portStyle: 'cathedral', notes: 'Better chambers. Real power bump.' },
+    { id: 'h_ls3', name: 'Rectangle Port L92/LS3-spec', flow: 315, chamber: 68, compression: 0, springRate: 'mild', cost: 1100, brand: 'GM OEM', shopSearch: 'L92 LS3 rectangle port cylinder heads', portStyle: 'rectangle', notes: 'LS3 spec. Standard baseline.' },
+    { id: 'h_btr', name: 'CNC Stage 3 Rectangle Port', flow: 360, chamber: 64, compression: 0.6, springRate: 'aggressive', cost: 2400, brand: 'Brian Tooley Racing', shopSearch: 'BTR CNC Stage 3 LS rectangle port cylinder heads', portStyle: 'rectangle', notes: 'Ported. Big valves. Needs stiff springs.' },
+    { id: 'h_race', name: 'Symmetrical Port Race Heads', flow: 410, chamber: 60, compression: 1.2, springRate: 'race', cost: 4200, brand: 'Trick Flow', shopSearch: 'Trick Flow LS symmetrical port race cylinder heads', portStyle: 'symmetrical', notes: 'Full race. Custom intake required.' },
   ],
   cam: [
     { id: 'c_stock', name: 'Stock Replacement', dur: 196, lift: 0.467, lsa: 116, springReq: 'stock', cost: 250, brand: 'GM OEM', shopSearch: 'LS stock replacement camshaft', character: 'docile', notes: 'Daily driver. Smooth and boring.' },
@@ -374,9 +374,10 @@ function calculateCR(blockId, headId, catalog) {
 // CARB CFM CALCULATOR
 // =====================================================
 function calculateIdealCFM(displacement, camChar) {
-  const base = displacement * 0.6;
-  const mult = { docile: 0.85, mild: 1.0, aggressive: 1.1, race: 1.25 }[camChar] || 1.0;
-  return Math.round(base * mult);
+  // Real 4-stroke formula: CFM = displacement × peak_rpm / 3456 × VE
+  const rpm = { docile: 4500, mild: 5000, aggressive: 5500, race: 6000 }[camChar] || 5000;
+  const ve  = { docile: 0.78, mild: 0.84, aggressive: 0.88, race: 0.92 }[camChar] || 0.84;
+  return Math.round(displacement * rpm / 3456 * ve);
 }
 
 // =====================================================
@@ -394,11 +395,6 @@ function checkCompatibility(build) {
   // Port matching
   if (head && intake && intake.flowMatch !== 'any' && intake.flowMatch !== head.portStyle) {
     issues.push({ severity: 'error', message: `Intake (${intake.flowMatch}) won't bolt to heads (${head.portStyle}).` });
-  }
-
-  // SBC Vortec check
-  if (build.family === 'sbc' && head?.portStyle === 'sbc_vortec' && intake?.flowMatch !== 'sbc_vortec') {
-    issues.push({ severity: 'error', message: `This intake won't fit Vortec bolt pattern.` });
   }
 
   // Spring requirement
@@ -645,10 +641,24 @@ function Engine3D({ build }) {
     };
     const onWheel = (e) => { e.preventDefault(); camDist = Math.max(3, Math.min(12, camDist + e.deltaY * 0.005)); };
 
+    const getTouchPos = (e) => ({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    const onTouchStart = (e) => { isDragging = true; lastDragTime = Date.now(); prevMouse = getTouchPos(e); };
+    const onTouchEnd   = () =>  { isDragging = false; lastDragTime = Date.now(); };
+    const onTouchMove  = (e) => {
+      if (!isDragging || !e.touches[0]) return;
+      const pos = getTouchPos(e);
+      rotY += (pos.x - prevMouse.x) * 0.01;
+      rotX = Math.max(-0.5, Math.min(1.2, rotX + (pos.y - prevMouse.y) * 0.01));
+      prevMouse = pos;
+    };
+
     renderer.domElement.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('mousemove', onMouseMove);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
+    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
+    renderer.domElement.addEventListener('touchend', onTouchEnd);
+    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
 
     // FIX: store frame ID so we can cancel it on unmount
     let frameId;
@@ -681,6 +691,9 @@ function Engine3D({ build }) {
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('wheel', onWheel);
+      renderer.domElement.removeEventListener('touchstart', onTouchStart);
+      renderer.domElement.removeEventListener('touchend', onTouchEnd);
+      renderer.domElement.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('resize', onResize);
       if (mount?.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
       renderer.dispose();
@@ -1205,6 +1218,7 @@ export default function EngineBuilder() {
               {[
                 { label: 'PEAK HP', value: peak.hp, sub: `@ ${peak.hpRpm} RPM` },
                 { label: 'PEAK TQ', value: `${peak.tq}`, sub: `@ ${peak.tqRpm} RPM` },
+                { label: 'COMPRESSION', value: `${calculateCR(build.block, build.heads, CAT)}:1`, sub: `${CAT.block.find(b=>b.id===build.block)?.displacement || '–'}ci` },
                 { label: 'BUILD COST', value: `$${(cost / 1000).toFixed(1)}k`, sub: 'parts only' },
               ].map(({ label, value, sub }) => (
                 <div key={label} style={{ flex: 1, background: 'rgba(8,8,10,0.85)', padding: '12px 14px', borderTop: `2px solid ${accent}`, boxShadow: `0 0 20px ${accent}33, inset 0 0 30px ${accent}08`, backdropFilter: 'blur(4px)' }}>
