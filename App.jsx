@@ -597,23 +597,29 @@ function Engine3D({ build }) {
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0x404048, 0.4);
+    const ambient = new THREE.AmbientLight(0x606070, 0.65);
     scene.add(ambient);
-    const keyLight = new THREE.DirectionalLight(0xfff4e8, 1.2);
-    keyLight.position.set(5, 8, 4);
+    const keyLight = new THREE.DirectionalLight(0xfff4e8, 1.9);
+    keyLight.position.set(5, 10, 4);
     keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
     scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
-    fillLight.position.set(-4, 2, -3);
+    const fillLight = new THREE.DirectionalLight(0x5580ff, 0.55);
+    fillLight.position.set(-5, 3, -2);
     scene.add(fillLight);
-    const rimLight = new THREE.DirectionalLight(0xff6600, 0.4);
-    rimLight.position.set(0, 1, -5);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    rimLight.position.set(-1, 2, -6);
     scene.add(rimLight);
+    const shopLight = new THREE.PointLight(0xfff0e8, 1.5, 12);
+    shopLight.position.set(0, 5, 0);
+    scene.add(shopLight);
 
     const floorGeom = new THREE.PlaneGeometry(20, 20);
-    const floor = new THREE.Mesh(floorGeom, new THREE.MeshStandardMaterial({ color: 0x151518, roughness: 0.8, metalness: 0.2 }));
+    const floor = new THREE.Mesh(floorGeom, new THREE.MeshStandardMaterial({ color: 0x0e0e10, roughness: 0.88, metalness: 0.28 }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.8;
     floor.receiveShadow = true;
@@ -703,191 +709,298 @@ function Engine3D({ build }) {
     const isCoyote = build.family === 'coyote';
     const isBBC = build.family === 'bbc';
     const isSBC = build.family === 'sbc';
-    const isLS = build.family === 'ls';
     const isHemi = build.family === 'hemi';
     const isGenI = isBBC || isSBC;
     const scale = block ? Math.pow(block.displacement / (isBBC ? 396 : isSBC ? 350 : isCoyote ? 302 : isHemi ? 392 : 376), 0.33) : 1;
 
-    // Derive accent from the active engine family
     const accent = ENGINE_FAMILIES[build.family]?.accent || '#ff6600';
     const accentHex = parseInt(accent.replace('#', ''), 16);
 
-    const blockColor = isGenI ? 0x707478 : 0xa0a4a8;
-    const blockMat = new THREE.MeshStandardMaterial({ color: blockColor, metalness: isGenI ? 0.6 : 0.85, roughness: isGenI ? 0.5 : 0.35 });
+    // helper: create mesh, position, rotate, cast shadow, add to group
+    const mk = (geom, mat, px=0, py=0, pz=0, rx=0, ry=0, rz=0) => {
+      const m = new THREE.Mesh(geom, mat);
+      m.position.set(px, py, pz);
+      m.rotation.set(rx, ry, rz);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      group.add(m);
+      return m;
+    };
 
-    const blockW = isBBC ? 2.7 * scale : isSBC ? 2.4 * scale : 2.4 * scale;
-    const blockH = isBBC ? 1.5 : isSBC ? 1.35 : 1.4;
-    const blockD = isBBC ? 1.8 : isSBC ? 1.6 : 1.6;
+    // ── Materials ─────────────────────────────────────
+    const mIron   = new THREE.MeshStandardMaterial({ color: 0x72787e, metalness: 0.58, roughness: 0.52 });
+    const mAl     = new THREE.MeshStandardMaterial({ color: 0xaab0b8, metalness: 0.86, roughness: 0.30 });
+    const mAccent = new THREE.MeshStandardMaterial({ color: accentHex, metalness: 0.72, roughness: 0.28 });
+    const mChrome = new THREE.MeshStandardMaterial({ color: 0xd8dce0, metalness: 0.98, roughness: 0.05 });
+    const mBlack  = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.65, roughness: 0.48 });
+    const mExh    = new THREE.MeshStandardMaterial({ color: isGenI ? 0x787870 : 0xc8ccd0, metalness: 0.82, roughness: 0.36 });
+    const mRubber = new THREE.MeshStandardMaterial({ color: 0x111114, metalness: 0.06, roughness: 0.95 });
+    const mHeadAl = new THREE.MeshStandardMaterial({ color: 0xb8bcbf, metalness: 0.90, roughness: 0.26 });
+    const mHeadIr = new THREE.MeshStandardMaterial({ color: 0x7c8084, metalness: 0.60, roughness: 0.54 });
+    const mHead   = (head && head.cost > 500) ? mHeadAl : mHeadIr;
+    const mBlock  = isGenI ? mIron : mAl;
 
-    const mainBlock = new THREE.Mesh(new THREE.BoxGeometry(blockW, blockH, blockD), blockMat);
-    mainBlock.castShadow = true;
-    group.add(mainBlock);
+    const bW = isBBC ? 2.80 * scale : isSBC ? 2.52 * scale : 2.46 * scale;
+    const bH = isBBC ? 1.55 : isSBC ? 1.38 : 1.42;
+    const bD = isBBC ? 1.85 : isSBC ? 1.65 : 1.65;
 
-    const oilPan = new THREE.Mesh(
-      new THREE.BoxGeometry(blockW * 0.85, 0.45, blockD * 0.8),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a1c, metalness: 0.7, roughness: 0.4 })
-    );
-    oilPan.position.y = -(blockH / 2 + 0.22);
-    oilPan.castShadow = true;
-    group.add(oilPan);
+    // ── Block body ──────────────────────────────────────
+    mk(new THREE.BoxGeometry(bW, bH, bD), mBlock);
+    // Oil pan — deeper, tapered
+    mk(new THREE.BoxGeometry(bW * 0.80, 0.38, bD * 0.76), mBlack, 0, -(bH/2 + 0.19), 0);
+    mk(new THREE.BoxGeometry(bW * 0.60, 0.22, bD * 0.60), mBlack, 0, -(bH/2 + 0.38), 0);
+    // Timing cover (front face)
+    mk(new THREE.BoxGeometry(bW * 0.60, bH * 0.68, 0.16), mAl, 0, -bH * 0.11, bD/2 + 0.08);
+    // Harmonic damper + pulley ring
+    mk(new THREE.CylinderGeometry(0.21, 0.21, 0.18, 24), mBlack, 0, -(bH * 0.27), bD/2 + 0.20, Math.PI/2, 0, 0);
+    mk(new THREE.TorusGeometry(0.17, 0.024, 8, 24), mChrome, 0, -(bH * 0.27), bD/2 + 0.29, Math.PI/2, 0, 0);
+    // Bellhousing flange (rear)
+    mk(new THREE.CylinderGeometry(0.60 * scale, 0.60 * scale, 0.16, 32), mBlack, 0, -(bH * 0.18), -(bD/2 + 0.08), Math.PI/2, 0, 0);
+    // Oil filter
+    mk(new THREE.CylinderGeometry(0.10, 0.10, 0.32, 12), mBlack, bW/2 + 0.06, -(bH * 0.27), bD * 0.22, 0, 0, Math.PI/2);
 
+    // ── Front accessories ───────────────────────────────
+    // Water pump body + pulley
+    mk(new THREE.CylinderGeometry(0.20, 0.16, 0.22, 20), mAl, 0, bH * 0.14, bD/2 + 0.20, Math.PI/2, 0, 0);
+    mk(new THREE.TorusGeometry(0.16, 0.020, 8, 22), mChrome, 0, bH * 0.14, bD/2 + 0.32, Math.PI/2, 0, 0);
+    // Alternator body + pulley
+    mk(new THREE.CylinderGeometry(0.14, 0.14, 0.26, 18), mAl, bW * 0.30, bH * 0.18, bD/2 + 0.20, Math.PI/2, 0, 0);
+    mk(new THREE.TorusGeometry(0.10, 0.016, 8, 18), mChrome, bW * 0.30, bH * 0.18, bD/2 + 0.34, Math.PI/2, 0, 0);
+    // Serpentine belt
+    mk(new THREE.TorusGeometry(0.22, 0.011, 6, 32), mRubber, 0, bH * 0.13, bD/2 + 0.31, Math.PI/2, 0, 0);
+
+    // ── Exhaust headers ─────────────────────────────────
+    // 4 primaries per bank → collector → exit
+    [-1, 1].forEach(side => {
+      const sX = side * (bW/2 + 0.05);
+      for (let i = 0; i < 4; i++) {
+        const z = (-0.48 + i * 0.32) * scale;
+        // horizontal stub out of head
+        mk(new THREE.CylinderGeometry(0.052, 0.052, 0.28, 8), mExh,
+           sX + side * 0.16, bH * 0.16, z, 0, 0, Math.PI/2);
+        // 45° sweep down
+        mk(new THREE.CylinderGeometry(0.052, 0.052, 0.32, 8), mExh,
+           sX + side * 0.33, bH * 0.02, z, 0, 0, side * Math.PI/4);
+        // vertical primary drop
+        mk(new THREE.CylinderGeometry(0.052, 0.052, 0.30, 8), mExh,
+           sX + side * 0.46, -(bH * 0.18), z);
+      }
+      // collector — merges 4 primaries
+      mk(new THREE.CylinderGeometry(0.10, 0.10, 0.52, 12), mExh,
+         sX + side * 0.45, -(bH * 0.48), 0);
+      // collector exit / H-pipe
+      mk(new THREE.CylinderGeometry(0.088, 0.088, 0.30, 12), mExh,
+         sX + side * 0.44, -(bH * 0.78), 0.05, side * 0.28, 0, 0);
+    });
+
+    // ── Cylinder heads ──────────────────────────────────
     if (isCoyote) {
-      const headMat = new THREE.MeshStandardMaterial({ color: 0xb8bcbf, metalness: 0.92, roughness: 0.28 });
+      // DOHC — heads angled off block shoulders
       [-1, 1].forEach(side => {
-        const headBox = new THREE.Mesh(new THREE.BoxGeometry(2.1 * scale, 0.45, 0.65), headMat);
-        headBox.position.set(side * 0.55, 0.95, 0);
-        headBox.rotation.z = side * 0.28;
-        headBox.castShadow = true;
-        group.add(headBox);
-
-        // Accent-colored cam covers
-        const cover = new THREE.Mesh(new THREE.BoxGeometry(2.0 * scale, 0.45, 0.60),
-          new THREE.MeshStandardMaterial({ color: accentHex, metalness: 0.65, roughness: 0.28 }));
-        cover.position.set(side * 0.55, 1.37, 0);
-        group.add(cover);
+        // Head casting
+        mk(new THREE.BoxGeometry(2.05 * scale, 0.44, 0.62), mHead,
+           side * 0.54, bH * 0.46, 0, 0, 0, side * 0.28);
+        // Cam cover (tall, accent color)
+        mk(new THREE.BoxGeometry(1.95 * scale, 0.50, 0.58), mAccent,
+           side * 0.54, bH * 0.46 + 0.47, 0, 0, 0, side * 0.28);
+        // VCT actuator at front of cam cover
+        mk(new THREE.CylinderGeometry(0.10, 0.10, 0.14, 14), mChrome,
+           side * (0.54 + 0.92 * scale), bH * 0.46 + 0.44, 0.10, Math.PI/2, 0, 0);
+        // Spark plug leads (4 per side)
+        for (let i = 0; i < 4; i++) {
+          mk(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 6), mRubber,
+             side * (0.54 + 0.42 * scale), bH * 0.46 + 0.14, (-0.40 + i * 0.27) * scale,
+             0, 0, side * 0.55);
+        }
       });
 
+      // Coyote intake plenum (valley-fill, between cam covers)
       if (intake) {
-        const h = intake.powerCurve === 'race' ? 0.55 : intake.powerCurve === 'high' ? 0.45 : 0.35;
-        const plenum = new THREE.Mesh(new THREE.BoxGeometry(2.0 * scale, h, 0.7),
-          new THREE.MeshStandardMaterial({ color: 0x1a1a20, metalness: 0.5, roughness: 0.45 }));
-        plenum.position.y = 1.4 + h / 2;
-        group.add(plenum);
-        // Throttle body
-        const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.28, 16),
-          new THREE.MeshStandardMaterial({ color: 0x252530, metalness: 0.85, roughness: 0.2 }));
-        tb.rotation.z = Math.PI / 2;
-        tb.position.set(0, 1.4 + h * 0.5, 0.5);
-        group.add(tb);
-      }
-    } else if (isGenI) {
-      const headMat = new THREE.MeshStandardMaterial({ color: 0xb8bcbf, metalness: 0.9, roughness: 0.3 });
-      [-1, 1].forEach(side => {
-        const headBox = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.82, 0.5, 0.75), headMat);
-        headBox.position.set(side * 0.65, blockH / 2 + 0.2, 0);
-        headBox.rotation.z = side * 0.35;
-        headBox.castShadow = true;
-        group.add(headBox);
-
-        // Accent-colored valve covers
-        const vc = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.8, 0.35, 0.7),
-          new THREE.MeshStandardMaterial({ color: accentHex, metalness: 0.65, roughness: 0.35 }));
-        vc.position.set(side * 0.65, blockH / 2 + 0.57, 0);
-        vc.castShadow = true;
-        group.add(vc);
-      });
-
-      if (intake) {
-        const h = intake.powerCurve === 'race' ? 0.8 : intake.powerCurve === 'high' ? 0.65 : 0.45;
-        const manifold = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.75, h, isBBC ? 1.3 : 1.1),
-          new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.5, roughness: 0.45 }));
-        manifold.position.y = blockH / 2 + h / 2 + 0.05;
-        group.add(manifold);
-
-        const carb = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, 0.65),
-          new THREE.MeshStandardMaterial({ color: 0xc8c8c4, metalness: 0.8, roughness: 0.25 }));
-        carb.position.y = blockH / 2 + h + 0.3;
-        group.add(carb);
-
-        const cleaner = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.2, 24),
-          new THREE.MeshStandardMaterial({ color: 0xd0d0cc, metalness: 0.9, roughness: 0.15 }));
-        cleaner.position.y = blockH / 2 + h + 0.65;
-        group.add(cleaner);
-      }
-
-      // Distributor
-      const dist = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.45, 12),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.6, roughness: 0.5 }));
-      dist.position.set(-blockW / 2 + 0.1, blockH / 2 + 0.1, -blockD / 2 + 0.15);
-      group.add(dist);
-    } else {
-      // LS OHV pushrod V8 — heads were missing in the original!
-      const headMat = new THREE.MeshStandardMaterial({ color: 0xa8acb0, metalness: 0.88, roughness: 0.32 });
-      [-1, 1].forEach(side => {
-        const headBox = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.85, 0.5, 0.72), headMat);
-        headBox.position.set(side * 0.6, blockH / 2 + 0.2, 0);
-        headBox.rotation.z = side * 0.22;
-        headBox.castShadow = true;
-        group.add(headBox);
-
-        // Accent-colored valve covers
-        const vc = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.82, 0.28, 0.68),
-          new THREE.MeshStandardMaterial({ color: accentHex, metalness: 0.7, roughness: 0.28 }));
-        vc.position.set(side * 0.6, blockH / 2 + 0.62, 0);
-        vc.castShadow = true;
-        group.add(vc);
-      });
-
-      if (intake) {
-        const h = intake.powerCurve === 'race' ? 0.65 : intake.powerCurve === 'high' ? 0.52 : intake.powerCurve === 'broad' ? 0.42 : 0.38;
-        const intakeIsAluminum = intake.powerCurve === 'race';
-        const manifold = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.62, h, 1.2 * scale),
-          new THREE.MeshStandardMaterial({ color: intakeIsAluminum ? 0x888880 : 0x1e1e26, metalness: intakeIsAluminum ? 0.82 : 0.5, roughness: 0.4 }));
-        manifold.position.y = blockH / 2 + h * 0.38;
-        group.add(manifold);
-
-        // 8 individual intake runners
+        const h = intake.powerCurve === 'race' ? 0.50 : intake.powerCurve === 'high' ? 0.40 : 0.30;
+        mk(new THREE.BoxGeometry(1.85 * scale, h, 0.52), mBlack, 0, bH * 0.46 + h * 0.5, 0);
+        // 8 individual runners (4 per side)
         for (let i = 0; i < 4; i++) {
           [-1, 1].forEach(side => {
-            const runner = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, h * 1.1, 8),
-              new THREE.MeshStandardMaterial({ color: 0x22222a, metalness: 0.5, roughness: 0.45 }));
-            runner.position.set(side * 0.32, blockH / 2 + h * 0.18, (-0.45 + i * 0.3) * scale);
-            runner.rotation.z = side * 0.18;
-            group.add(runner);
+            mk(new THREE.CylinderGeometry(0.058, 0.058, 0.45, 8), mBlack,
+               side * 0.26, bH * 0.46 + h * 0.22, (-0.38 + i * 0.25) * scale, 0, 0, side * 0.22);
           });
         }
+        // Throttle body + MAF inlet
+        mk(new THREE.CylinderGeometry(0.18, 0.18, 0.30, 16), mBlack,
+           0, bH * 0.46 + h * 0.50, 0.45, Math.PI/2, 0, 0);
+        mk(new THREE.CylinderGeometry(0.22, 0.22, 0.18, 16), mBlack,
+           0, bH * 0.46 + h * 0.50, 0.66, Math.PI/2, 0, 0);
+      }
 
+    } else if (isGenI) {
+      // BBC / SBC OHV — flat head, ribbed valve cover
+      [-1, 1].forEach(side => {
+        // Head casting
+        mk(new THREE.BoxGeometry(bW * 0.80, 0.50, 0.78), mHead,
+           side * 0.62, bH/2 + 0.22, 0, 0, 0, side * 0.34);
+        // Valve cover base
+        mk(new THREE.BoxGeometry(bW * 0.77, 0.32, 0.72), mAccent,
+           side * 0.62, bH/2 + 0.60, 0, 0, 0, side * 0.34);
+        // Ribs on valve cover (4)
+        for (let r = 0; r < 4; r++) {
+          mk(new THREE.BoxGeometry(0.028, 0.10, 0.70), mAccent,
+             side * (0.62 + (-0.30 + r * 0.20)), bH/2 + 0.76, 0, 0, 0, side * 0.34);
+        }
+        // Oil filler cap
+        mk(new THREE.CylinderGeometry(0.06, 0.06, 0.06, 10), mBlack,
+           side * 0.60, bH/2 + 0.79, -0.28, 0, 0, side * 0.34);
+      });
+
+      // Distributor at rear top of block
+      mk(new THREE.CylinderGeometry(0.10, 0.12, 0.44, 12), mBlack,
+         -(bW/2 - 0.12), bH/2 + 0.12, -(bD/2 - 0.14));
+      // Dist cap (dome)
+      mk(new THREE.CylinderGeometry(0.13, 0.13, 0.16, 12), mBlack,
+         -(bW/2 - 0.12), bH/2 + 0.38, -(bD/2 - 0.14));
+      // 8 plug wires from cap
+      for (let w = 0; w < 8; w++) {
+        const angle = (w / 8) * Math.PI * 2;
+        mk(new THREE.CylinderGeometry(0.010, 0.010, 0.55, 4), mRubber,
+           -(bW/2 - 0.12) + Math.cos(angle) * 0.22,
+           bH/2 + 0.32,
+           -(bD/2 - 0.14) + Math.sin(angle) * 0.22, 0, 0, angle);
+      }
+
+      // Intake manifold + carb
+      if (intake) {
+        const h = intake.powerCurve === 'race' ? 0.78 : intake.powerCurve === 'high' ? 0.62 : 0.44;
+        const mfld = intake.powerCurve === 'race' ? mAl : mBlack;
+        mk(new THREE.BoxGeometry(bW * 0.72, h, isBBC ? 1.28 : 1.08), mfld,
+           0, bH/2 + h/2 + 0.06, 0);
+
+        if (intake.powerCurve === 'race' && isGenI) {
+          // Tunnel-ram dual carb
+          mk(new THREE.BoxGeometry(0.38, 0.50, 0.68), mAl, -0.28, bH/2 + h + 0.28, 0);
+          mk(new THREE.BoxGeometry(0.38, 0.50, 0.68), mAl,  0.28, bH/2 + h + 0.28, 0);
+          mk(new THREE.CylinderGeometry(0.32, 0.32, 0.14, 24), mChrome, -0.28, bH/2 + h + 0.62, 0);
+          mk(new THREE.CylinderGeometry(0.32, 0.32, 0.14, 24), mChrome,  0.28, bH/2 + h + 0.62, 0);
+        } else {
+          // Single carb + chrome air cleaner
+          mk(new THREE.BoxGeometry(0.68, 0.52, 0.64), mAl, 0, bH/2 + h + 0.30, 0);
+          mk(new THREE.CylinderGeometry(0.46, 0.46, 0.18, 24), mChrome, 0, bH/2 + h + 0.65, 0);
+          mk(new THREE.CylinderGeometry(0.44, 0.44, 0.14, 24), mBlack, 0, bH/2 + h + 0.75, 0);
+        }
+      }
+
+    } else {
+      // LS / Hemi OHV — flat-top valve covers + coil packs
+      [-1, 1].forEach(side => {
+        // Head casting
+        mk(new THREE.BoxGeometry(bW * 0.84, 0.48, 0.70), mHead,
+           side * 0.58, bH/2 + 0.21, 0, 0, 0, side * 0.22);
+        // Valve cover
+        mk(new THREE.BoxGeometry(bW * 0.80, 0.26, 0.66), mAccent,
+           side * 0.58, bH/2 + 0.60, 0, 0, 0, side * 0.22);
+        // Coil packs — 4 per side, sitting on valve cover
+        for (let c = 0; c < 4; c++) {
+          mk(new THREE.BoxGeometry(0.12, 0.14, 0.10), mBlack,
+             side * 0.56, bH/2 + 0.76, (-0.38 + c * 0.26) * scale, 0, 0, side * 0.22);
+          // Plug boot
+          mk(new THREE.CylinderGeometry(0.022, 0.022, 0.30, 6), mRubber,
+             side * 0.56, bH/2 + 0.60, (-0.38 + c * 0.26) * scale, 0, 0, side * 0.22);
+        }
+        // Oil filler cap
+        mk(new THREE.CylinderGeometry(0.055, 0.055, 0.06, 10), mChrome,
+           side * 0.54, bH/2 + 0.77, 0.30);
+      });
+
+      // EFI intake manifold
+      if (intake) {
+        const h = intake.powerCurve === 'race' ? 0.62 : intake.powerCurve === 'high' ? 0.50 : intake.powerCurve === 'broad' ? 0.40 : 0.34;
+        const mfld = (intake.powerCurve === 'race' || intake.powerCurve === 'high') ? mAl : mBlack;
+        mk(new THREE.BoxGeometry(bW * 0.60, h, 1.18 * scale), mfld, 0, bH/2 + h * 0.42, 0);
+
+        // 8 individual runners
+        for (let i = 0; i < 4; i++) {
+          [-1, 1].forEach(side => {
+            mk(new THREE.CylinderGeometry(0.068, 0.068, h * 1.05, 8), mfld,
+               side * 0.30, bH/2 + h * 0.15, (-0.42 + i * 0.28) * scale, 0, 0, side * 0.16);
+          });
+        }
         // Throttle body
-        const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.28, 16),
-          new THREE.MeshStandardMaterial({ color: 0x252530, metalness: 0.85, roughness: 0.2 }));
-        tb.rotation.z = Math.PI / 2;
-        tb.position.set(0, blockH / 2 + h * 0.5, -(0.6 * scale) - 0.05);
-        group.add(tb);
+        mk(new THREE.CylinderGeometry(0.19, 0.19, 0.28, 16), mBlack,
+           0, bH/2 + h * 0.52, -(0.58 * scale) - 0.04, Math.PI/2, 0, 0);
+        // MAF inlet
+        mk(new THREE.CylinderGeometry(0.23, 0.23, 0.18, 16), mBlack,
+           0, bH/2 + h * 0.52, -(0.58 * scale) - 0.23, Math.PI/2, 0, 0);
       }
     }
 
+    // ── Forced induction ────────────────────────────────
     if (fi && fi.type === 'turbo') {
-      // Turbo housing
-      const turbo = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.5, 24),
-        new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.95, roughness: 0.2 }));
-      turbo.rotation.z = Math.PI / 2;
-      turbo.position.set(-1.8, 0.2, 0.8);
-      group.add(turbo);
-      // Compressor wheel
-      const compressor = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.15, 16),
-        new THREE.MeshStandardMaterial({ color: 0xd0d4d8, metalness: 0.95, roughness: 0.1 }));
-      compressor.rotation.z = Math.PI / 2;
-      compressor.position.set(-2.07, 0.2, 0.8);
-      group.add(compressor);
-      // Heat glow from exhaust housing
-      const turboGlow = new THREE.PointLight(0xff4400, 1.8, 2.5);
-      turboGlow.position.set(-1.8, 0.2, 0.8);
-      group.add(turboGlow);
+      const tX = -(bW/2 + 0.80), tY = -0.10, tZ = 0.70;
+      // Turbine housing (hot side — cast iron look)
+      mk(new THREE.CylinderGeometry(0.32, 0.32, 0.38, 24),
+         new THREE.MeshStandardMaterial({ color: 0x4a4840, metalness: 0.65, roughness: 0.60 }),
+         tX, tY, tZ, 0, 0, Math.PI/2);
+      // Compressor housing (cold side — polished)
+      mk(new THREE.CylinderGeometry(0.28, 0.28, 0.32, 24), mChrome,
+         tX - 0.38, tY, tZ, 0, 0, Math.PI/2);
+      // Center section
+      mk(new THREE.CylinderGeometry(0.14, 0.14, 0.44, 16), mBlack,
+         tX - 0.19, tY, tZ, 0, 0, Math.PI/2);
+      // Compressor inlet snout
+      mk(new THREE.CylinderGeometry(0.14, 0.20, 0.22, 16), mChrome,
+         tX - 0.60, tY, tZ, 0, 0, Math.PI/2);
+      // Downpipe stub
+      mk(new THREE.CylinderGeometry(0.09, 0.09, 0.40, 12), mExh,
+         tX, tY - 0.40, tZ, 0.25, 0, 0);
+      // Heat glow from turbine housing
+      const glow = new THREE.PointLight(0xff5500, 2.2, 2.8);
+      glow.position.set(tX, tY, tZ);
+      group.add(glow);
+
     } else if (fi && fi.type === 'roots') {
-      const blower = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.8),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.7, roughness: 0.3 }));
-      blower.position.y = 1.95;
-      group.add(blower);
-      // Blower fins
-      for (let i = 0; i < 5; i++) {
-        const fin = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.04, 0.75),
-          new THREE.MeshStandardMaterial({ color: 0x888890, metalness: 0.9, roughness: 0.2 }));
-        fin.position.y = 1.95 + 0.08 + i * 0.09;
-        group.add(fin);
+      // Roots blower sitting on top of intake
+      const intH = bH/2 + (intake && intake.powerCurve === 'race' ? 0.78 : intake && intake.powerCurve === 'high' ? 0.62 : 0.44);
+      // Main case
+      mk(new THREE.BoxGeometry(bW * 0.80, 0.56, bD * 0.78), mBlack, 0, intH + 0.28, 0);
+      // 10 case fins on top
+      for (let i = 0; i < 10; i++) {
+        mk(new THREE.BoxGeometry(bW * 0.78, 0.040, bD * 0.76), mAl, 0, intH + 0.58 + i * 0.060, 0);
       }
+      // Top plenum
+      mk(new THREE.BoxGeometry(bW * 0.70, 0.20, bD * 0.62), mBlack, 0, intH + 1.20, 0);
+      // Inlet scoop
+      mk(new THREE.BoxGeometry(0.45, 0.36, 0.42), mBlack, 0, intH + 1.38, 0.18);
+      // Drive snout + pulley
+      mk(new THREE.CylinderGeometry(0.14, 0.14, 0.22, 18), mAl,
+         0, intH + 0.26, bD/2 + 0.20, Math.PI/2, 0, 0);
+      mk(new THREE.TorusGeometry(0.24, 0.028, 8, 24), mChrome,
+         0, intH + 0.26, bD/2 + 0.32, Math.PI/2, 0, 0);
+      // Belt from blower pulley to crank
+      mk(new THREE.BoxGeometry(0.05, 0.50, 0.028), mRubber, 0, bH * 0.05, bD/2 + 0.30);
+
     } else if (fi && fi.type === 'centri') {
-      const centri = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 0.55, 24),
-        new THREE.MeshStandardMaterial({ color: 0xc8c8c4, metalness: 0.92, roughness: 0.15 }));
-      centri.rotation.z = Math.PI / 2;
-      centri.position.set(1.6, 0.6, 0.5);
-      group.add(centri);
+      const cX = bW/2 + 0.60, cY = bH * 0.10, cZ = 0.40;
+      // Snail housing (tapered cylinder)
+      mk(new THREE.CylinderGeometry(0.30, 0.22, 0.52, 24), mChrome, cX, cY, cZ, 0, 0, Math.PI/2);
+      // Compressor inlet
+      mk(new THREE.CylinderGeometry(0.14, 0.18, 0.22, 16), mChrome, cX + 0.40, cY, cZ, 0, 0, Math.PI/2);
+      // Discharge pipe — goes up toward intercooler
+      mk(new THREE.CylinderGeometry(0.072, 0.072, 0.50, 10), mChrome, cX + 0.02, cY + 0.44, cZ, 0.20, 0, 0);
+      // Drive belt from crank
+      mk(new THREE.BoxGeometry(0.05, 0.52, 0.022), mRubber, bW/2 + 0.06, bH * 0.08, bD/2 + 0.28);
+
     } else if (fi && fi.type === 'nitrous') {
-      // NOS bottle
-      const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 12),
-        new THREE.MeshStandardMaterial({ color: 0x1144ff, metalness: 0.8, roughness: 0.2 }));
-      bottle.rotation.z = Math.PI / 2;
-      bottle.position.set(1.4, -0.1, -0.5);
-      group.add(bottle);
+      // NOS bottle (blue)
+      const mBottle = new THREE.MeshStandardMaterial({ color: 0x1144ee, metalness: 0.78, roughness: 0.24 });
+      mk(new THREE.CylinderGeometry(0.095, 0.095, 0.62, 14), mBottle,
+         bW/2 + 0.24, -0.08, -0.48, 0, 0, Math.PI/2);
+      // Bottle dome
+      mk(new THREE.SphereGeometry(0.095, 12, 8), mBottle,
+         bW/2 + 0.57, -0.08, -0.48);
+      // Valve / solenoid block
+      mk(new THREE.BoxGeometry(0.10, 0.10, 0.10), mChrome,
+         bW/2 + 0.24, 0.02, -0.35);
+      // Feed line (thin tube running toward intake)
+      mk(new THREE.CylinderGeometry(0.016, 0.016, 0.52, 6), mChrome,
+         bW/2 + 0.14, 0.06, -0.14, 0.10, 0, Math.PI/2);
     }
   }, [build]);
 
