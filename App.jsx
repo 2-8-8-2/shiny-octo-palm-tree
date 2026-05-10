@@ -48,6 +48,20 @@ const ENGINE_FAMILIES = {
       intake: 'bbc_i_singleplane', forcedInduction: 'fi_none', fuel: 'bbc_holley_650',
     },
   },
+  hemi: {
+    id: 'hemi',
+    name: 'Dodge Hemi',
+    label: 'HEMI V8',
+    subtitle: 'Gen III — 5.7 / 6.1 / 6.4 / 6.2SC',
+    accent: '#9900cc',
+    valvetrain: 'pushrod',
+    fuelType: 'efi',
+    defaultBuild: {
+      name: 'My 6.4 Build',
+      block: 'hemi_392', heads: 'hemi_h_64', cam: 'hemi_c_stage1',
+      intake: 'hemi_i_stock', forcedInduction: 'fi_none', fuel: 'hemi_f_72lb',
+    },
+  },
   sbc: {
     id: 'sbc',
     name: 'Chevy Small Block',
@@ -214,6 +228,53 @@ const CATALOG_BBC = {
 };
 
 // =====================================================
+// HEMI CATALOG
+// =====================================================
+const CATALOG_HEMI = {
+  block: [
+    { id: 'hemi_345', name: '5.7L Gen III (345ci)', displacement: 345, bore: 3.917, stroke: 3.578, compression: 9.6, maxBoost: 14, cost: 800, notes: 'Cheapest entry point. Charger/300 donor. Solid platform.' },
+    { id: 'hemi_370', name: '6.1L SRT8 (370ci)', displacement: 370, bore: 4.055, stroke: 3.578, compression: 10.3, maxBoost: 12, cost: 1800, notes: 'SRT8 spec. Better castings than 5.7. Harder to find.' },
+    { id: 'hemi_392', name: '6.4L Apache (392ci)', displacement: 392, bore: 4.090, stroke: 3.720, compression: 10.9, maxBoost: 10, cost: 2800, notes: 'Best NA foundation. High CR — respect boost limits.' },
+    { id: 'hemi_hellcat_block', name: '6.2L Hellcat Forged (376ci)', displacement: 376, bore: 4.090, stroke: 3.578, compression: 9.5, maxBoost: 30, cost: 5500, notes: 'Factory forged internals. Purpose-built for blower abuse.' },
+    { id: 'hemi_408', name: '408ci Stroker (4.050" stroke)', displacement: 408, bore: 4.090, stroke: 3.900, compression: 9.2, maxBoost: 20, cost: 6500, notes: 'Max naturally aspirated or moderate boost cubes.' },
+  ],
+  heads: [
+    { id: 'hemi_h_57', name: 'Stock 5.7L Hemi Heads', flow: 220, chamber: 69, compression: 0, springRate: 'stock', cost: 400, portStyle: 'hemi', notes: 'Smaller ports. Fine for mild 5.7/345 builds.' },
+    { id: 'hemi_h_64', name: '6.1L / 6.4L SRT Heads', flow: 255, chamber: 66, compression: 0, springRate: 'mild', cost: 900, portStyle: 'hemi', notes: 'Bigger ports. Direct bolt-on to any Gen III block.' },
+    { id: 'hemi_h_ported', name: 'CNC Ported 6.4L Heads', flow: 305, chamber: 64, compression: 0.3, springRate: 'aggressive', cost: 2400, portStyle: 'hemi', notes: 'Most popular mod. Big top-end gains.' },
+    { id: 'hemi_h_indy', name: 'Indy IRSS Race Heads', flow: 350, chamber: 62, compression: 0.8, springRate: 'race', cost: 4800, portStyle: 'hemi', notes: 'Full race castings. Titanium valves optional.' },
+  ],
+  cam: [
+    { id: 'hemi_c_stock', name: 'Stock Cam (w/ MDS)', dur: 196, lift: 0.442, lsa: 116, springReq: 'stock', cost: 0, character: 'docile', notes: 'Cylinder deactivation cam. Smooth and quiet.' },
+    { id: 'hemi_c_stage1', name: 'Stage 1 — MDS Delete', dur: 214, lift: 0.510, lsa: 114, springReq: 'mild', cost: 550, character: 'mild', notes: 'Deletes cylinder deactivation. Real first-mod cam.' },
+    { id: 'hemi_c_stage2', name: 'Stage 2 — Street/Strip', dur: 224, lift: 0.565, lsa: 112, springReq: 'mild', cost: 700, character: 'aggressive', notes: 'Lopey idle. Strong 3500–6000 RPM band.' },
+    { id: 'hemi_c_stage3', name: 'Stage 3 — Aggressive', dur: 236, lift: 0.605, lsa: 110, springReq: 'aggressive', cost: 900, character: 'aggressive', notes: 'Rowdy. Needs 2800+ stall or manual trans.' },
+    { id: 'hemi_c_race', name: 'Stage 4 — Full Race', dur: 250, lift: 0.650, lsa: 108, springReq: 'race', cost: 1100, character: 'race', notes: 'Track only. No idle to speak of.' },
+    { id: 'hemi_c_boost', name: 'Boost-Spec Grind', dur: 220, lift: 0.540, lsa: 118, springReq: 'aggressive', cost: 750, character: 'mild', notes: 'Wide LSA built for blower or turbo.' },
+  ],
+  intake: [
+    { id: 'hemi_i_stock', name: 'Stock EFI Manifold', flowMatch: 'hemi', powerCurve: 'broad', cost: 200, notes: '6.4L OEM is surprisingly good. Strong mid-range.' },
+    { id: 'hemi_i_mopar', name: 'Mopar Performance Cold Air', flowMatch: 'hemi', powerCurve: 'mid', cost: 500, notes: 'Bolt-on. Extends powerband vs stock.' },
+    { id: 'hemi_i_edel', name: 'Edelbrock Victor Jr. EFI', flowMatch: 'hemi', powerCurve: 'high', cost: 900, notes: 'Single plane. Top-end focused.' },
+    { id: 'hemi_i_wilson', name: 'Wilson Sheet Metal Race', flowMatch: 'hemi', powerCurve: 'race', cost: 2800, notes: 'Race-only. Hood clearance issues.' },
+  ],
+  forcedInduction: [
+    { id: 'fi_none', name: 'Naturally Aspirated', type: 'none', boost: 0, efficiency: 1.0, cost: 0, notes: 'The 6.4 is already a monster NA.' },
+    { id: 'hemi_fi_procharger', name: 'ProCharger D-1SC (Centrifugal)', type: 'centri', boost: 10, efficiency: 0.76, cost: 5500, notes: 'Linear power delivery. Street friendly.' },
+    { id: 'hemi_fi_kenne', name: 'Kenne Bell 2.8L TVS', type: 'roots', boost: 9, efficiency: 0.74, cost: 6000, notes: 'Roots-style. Instant boost. Compact.' },
+    { id: 'hemi_fi_whipple', name: 'Whipple 2.9L TVS (Hellcat-style)', type: 'roots', boost: 14, efficiency: 0.78, cost: 7500, notes: 'The blower the Hellcat wears. Big power.' },
+    { id: 'hemi_fi_turbo_mid', name: 'Single Turbo — 76mm', type: 'turbo', boost: 14, efficiency: 0.76, cost: 4500, notes: 'Torque monster. Slight spool lag.' },
+    { id: 'hemi_fi_twin', name: 'Twin Turbo — 6266 x2', type: 'turbo', boost: 20, efficiency: 0.80, cost: 8500, notes: 'Best spool + massive ceiling.' },
+  ],
+  fuel: [
+    { id: 'hemi_f_stock', name: 'Stock 54lb Injectors', flowRate: 54, e85: false, cost: 0, notes: 'Stock GEN III fuel system. ~510 hp limit.' },
+    { id: 'hemi_f_72lb', name: '72lb Injectors + 340lph Pump', flowRate: 72, e85: true, cost: 700, notes: 'Right-sized for most builds under 700 hp.' },
+    { id: 'hemi_f_120lb', name: '120lb Injectors + Twin 450lph', flowRate: 120, e85: true, cost: 1600, notes: 'Big blower / turbo capable.' },
+    { id: 'hemi_f_160lb', name: '160lb Injectors + Mech Pump', flowRate: 160, e85: true, cost: 2800, notes: 'Race fuel system. 1500+ hp territory.' },
+  ],
+};
+
+// =====================================================
 // SBC CATALOG
 // =====================================================
 const CATALOG_SBC = {
@@ -270,6 +331,7 @@ function getCatalog(family) {
   if (family === 'coyote') return CATALOG_COYOTE;
   if (family === 'bbc') return CATALOG_BBC;
   if (family === 'sbc') return CATALOG_SBC;
+  if (family === 'hemi') return CATALOG_HEMI;
   return CATALOG_LS;
 }
 
@@ -353,6 +415,20 @@ function checkCompatibility(build) {
     }
   }
 
+  // Hemi-specific checks
+  if (build.family === 'hemi' && block) {
+    const cr = calculateCR(block.id, build.heads, CAT);
+    if (fi?.boost > 5 && cr > 10.5) {
+      issues.push({ severity: 'warn', message: `${cr}:1 CR + ${fi.boost}psi is risky on pump gas. Run E85 or drop boost.` });
+    }
+    if (fi?.boost > 15 && cr > 10.5) {
+      issues.push({ severity: 'error', message: `${cr}:1 CR + ${fi.boost}psi will detonate. Use the Hellcat block (9.5:1) for big boost.` });
+    }
+    if (build.cam === 'hemi_c_stock' && (build.intake !== 'hemi_i_stock' && build.intake !== 'hemi_i_mopar')) {
+      issues.push({ severity: 'info', message: `MDS cam limits top-end gains. Delete MDS with Stage 1+ cam to unlock performance intake benefit.` });
+    }
+  }
+
   // FIX: Carb sizing check — use the fuel (carb) item's flowRate, not the intake manifold's
   if ((build.family === 'bbc' || build.family === 'sbc') && cam && block) {
     const ideal = calculateIdealCFM(block.displacement, cam.character);
@@ -408,6 +484,7 @@ function simulateDyno(build) {
   const isCoyote = build.family === 'coyote';
   const isGenI = build.family === 'bbc' || build.family === 'sbc';
   const isBBC = build.family === 'bbc';
+  const isHemi = build.family === 'hemi';
 
   const rpm = isCoyote ? [1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000]
     : isGenI ? [1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000]
@@ -415,18 +492,18 @@ function simulateDyno(build) {
 
   const intakePeaks = { low: 3800, mid: 4800, broad: 5200, high: 5800, race: 6500 };
   const camPeaks = {
-    docile: isGenI ? 3800 : 5200,
-    mild: isGenI ? 4800 : 6000,
-    aggressive: isGenI ? 5500 : 6800,
-    race: isGenI ? 6200 : 7500,
+    docile: isGenI ? 3800 : isHemi ? 4200 : 5200,
+    mild: isGenI ? 4800 : isHemi ? 5400 : 6000,
+    aggressive: isGenI ? 5500 : isHemi ? 6200 : 6800,
+    race: isGenI ? 6200 : isHemi ? 6800 : 7500,
   };
 
   const peakRpm = (intakePeaks[intake.powerCurve] + camPeaks[cam.character]) / 2;
   const cr = calculateCR(block.id, head.id, CAT);
-  const baseMult = isBBC ? 10.5 : isGenI ? 9.3 : isCoyote ? 7.8 : 8.5;
-  const flowBaseline = isGenI ? 290 : isCoyote ? 260 : 280;
+  const baseMult = isBBC ? 10.5 : isGenI ? 9.3 : isCoyote ? 7.8 : isHemi ? 9.0 : 8.5;
+  const flowBaseline = isGenI ? 290 : isCoyote ? 260 : isHemi ? 250 : 280;
   const flowFactor = head.flow / flowBaseline;
-  const liftBaseline = isGenI ? 0.520 : isCoyote ? 0.472 : 0.617;
+  const liftBaseline = isGenI ? 0.520 : isCoyote ? 0.472 : isHemi ? 0.510 : 0.617;
   const liftFactor = 0.78 + (cam.lift / liftBaseline) * 0.28;
   const vctBonus = isCoyote && (cam.character === 'docile' || cam.character === 'mild') ? 1.08 : 1.0;
 
@@ -445,13 +522,13 @@ function simulateDyno(build) {
 
   const curve = rpm.map(r => {
     const dist = Math.abs(r - peakRpm) / peakRpm;
-    const veWidth = isGenI ? 0.85 : isCoyote ? 0.95 : 1.1;
+    const veWidth = isGenI ? 0.85 : isCoyote ? 0.95 : isHemi ? 1.0 : 1.1;
     let ve = 0.95 - Math.pow(dist, 2) * veWidth;
 
     if (cam.character === 'race' && r < (isGenI ? 3500 : 4000)) ve *= 0.65;
-    if (cam.character === 'docile' && r > (isGenI ? 5200 : 6500)) ve *= 0.72;
+    if (cam.character === 'docile' && r > (isGenI ? 5200 : isHemi ? 5800 : 6500)) ve *= 0.72;
 
-    ve = Math.max(0.4, Math.min(isCoyote ? 1.12 : isGenI ? 1.08 : 1.05, ve)) * vctBonus * carbFactor;
+    ve = Math.max(0.4, Math.min(isCoyote ? 1.12 : isGenI ? 1.08 : isHemi ? 1.06 : 1.05, ve)) * vctBonus * carbFactor;
 
     const crFactor = 0.92 + (cr - 9.0) * 0.015;
     let tq = (disL * 14.7 * ve * flowFactor * liftFactor * boostMult * crFactor) * baseMult;
@@ -462,6 +539,7 @@ function simulateDyno(build) {
 
     if (isCoyote && r > 7000 && cam.character !== 'race') tq *= 0.88;
     if (isGenI && r > 6000 && cam.character !== 'race') tq *= Math.max(0.70, 1 - (r - 6000) / 8000);
+    if (isHemi && r > 6000 && cam.character !== 'race') tq *= Math.max(0.72, 1 - (r - 6000) / 6500);
 
     let hp = (tq * r) / 5252;
     if (hp > fuelCeilingHp) hp = fuelCeilingHp + (hp - fuelCeilingHp) * 0.08;
@@ -619,10 +697,12 @@ function Engine3D({ build }) {
     const isBBC = build.family === 'bbc';
     const isSBC = build.family === 'sbc';
     const isLS = build.family === 'ls';
+    const isHemi = build.family === 'hemi';
     const isGenI = isBBC || isSBC;
-    const scale = block ? Math.pow(block.displacement / (isBBC ? 396 : isSBC ? 350 : isCoyote ? 302 : 376), 0.33) : 1;
+    const scale = block ? Math.pow(block.displacement / (isBBC ? 396 : isSBC ? 350 : isCoyote ? 302 : isHemi ? 392 : 376), 0.33) : 1;
 
-    // Parse hex accent to THREE color
+    // Derive accent from the active engine family
+    const accent = ENGINE_FAMILIES[build.family]?.accent || '#ff6600';
     const accentHex = parseInt(accent.replace('#', ''), 16);
 
     const blockColor = isGenI ? 0x707478 : 0xa0a4a8;
