@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // =====================================================
 // ENGINE FAMILIES — with compression ratios & specs
@@ -542,9 +542,10 @@ function Engine3D({ build }) {
     scene.add(engineGroup);
 
     let isDragging = false, prevMouse = { x: 0, y: 0 }, rotY = Math.PI / 6, rotX = 0.2, camDist = 6.5;
+    let lastDragTime = 0;
 
-    const onMouseDown = (e) => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; };
-    const onMouseUp = () => { isDragging = false; };
+    const onMouseDown = (e) => { isDragging = true; lastDragTime = Date.now(); prevMouse = { x: e.clientX, y: e.clientY }; };
+    const onMouseUp = () => { isDragging = false; lastDragTime = Date.now(); };
     const onMouseMove = (e) => {
       if (!isDragging) return;
       rotY += (e.clientX - prevMouse.x) * 0.01;
@@ -562,6 +563,10 @@ function Engine3D({ build }) {
     let frameId;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
+      // Auto-rotate slowly when user hasn't interacted for 1.5s
+      if (!isDragging && Date.now() - lastDragTime > 1500) {
+        rotY += 0.004;
+      }
       camera.position.x = Math.sin(rotY) * Math.cos(rotX) * camDist;
       camera.position.y = Math.sin(rotX) * camDist + 0.5;
       camera.position.z = Math.cos(rotY) * Math.cos(rotX) * camDist;
@@ -613,8 +618,12 @@ function Engine3D({ build }) {
     const isCoyote = build.family === 'coyote';
     const isBBC = build.family === 'bbc';
     const isSBC = build.family === 'sbc';
+    const isLS = build.family === 'ls';
     const isGenI = isBBC || isSBC;
     const scale = block ? Math.pow(block.displacement / (isBBC ? 396 : isSBC ? 350 : isCoyote ? 302 : 376), 0.33) : 1;
+
+    // Parse hex accent to THREE color
+    const accentHex = parseInt(accent.replace('#', ''), 16);
 
     const blockColor = isGenI ? 0x707478 : 0xa0a4a8;
     const blockMat = new THREE.MeshStandardMaterial({ color: blockColor, metalness: isGenI ? 0.6 : 0.85, roughness: isGenI ? 0.5 : 0.35 });
@@ -644,8 +653,9 @@ function Engine3D({ build }) {
         headBox.castShadow = true;
         group.add(headBox);
 
+        // Accent-colored cam covers
         const cover = new THREE.Mesh(new THREE.BoxGeometry(2.0 * scale, 0.45, 0.60),
-          new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.6, roughness: 0.3 }));
+          new THREE.MeshStandardMaterial({ color: accentHex, metalness: 0.65, roughness: 0.28 }));
         cover.position.set(side * 0.55, 1.37, 0);
         group.add(cover);
       });
@@ -656,6 +666,12 @@ function Engine3D({ build }) {
           new THREE.MeshStandardMaterial({ color: 0x1a1a20, metalness: 0.5, roughness: 0.45 }));
         plenum.position.y = 1.4 + h / 2;
         group.add(plenum);
+        // Throttle body
+        const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.28, 16),
+          new THREE.MeshStandardMaterial({ color: 0x252530, metalness: 0.85, roughness: 0.2 }));
+        tb.rotation.z = Math.PI / 2;
+        tb.position.set(0, 1.4 + h * 0.5, 0.5);
+        group.add(tb);
       }
     } else if (isGenI) {
       const headMat = new THREE.MeshStandardMaterial({ color: 0xb8bcbf, metalness: 0.9, roughness: 0.3 });
@@ -666,9 +682,10 @@ function Engine3D({ build }) {
         headBox.castShadow = true;
         group.add(headBox);
 
+        // Accent-colored valve covers
         const vc = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.8, 0.35, 0.7),
-          new THREE.MeshStandardMaterial({ color: isBBC ? 0x2a2a34 : 0x3a3a40, metalness: 0.55, roughness: 0.4 }));
-        vc.position.set(side * 0.65, blockH / 2 + 0.55, 0);
+          new THREE.MeshStandardMaterial({ color: accentHex, metalness: 0.65, roughness: 0.35 }));
+        vc.position.set(side * 0.65, blockH / 2 + 0.57, 0);
         vc.castShadow = true;
         group.add(vc);
       });
@@ -691,23 +708,99 @@ function Engine3D({ build }) {
         group.add(cleaner);
       }
 
+      // Distributor
       const dist = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.45, 12),
         new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.6, roughness: 0.5 }));
       dist.position.set(-blockW / 2 + 0.1, blockH / 2 + 0.1, -blockD / 2 + 0.15);
       group.add(dist);
+    } else {
+      // LS OHV pushrod V8 — heads were missing in the original!
+      const headMat = new THREE.MeshStandardMaterial({ color: 0xa8acb0, metalness: 0.88, roughness: 0.32 });
+      [-1, 1].forEach(side => {
+        const headBox = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.85, 0.5, 0.72), headMat);
+        headBox.position.set(side * 0.6, blockH / 2 + 0.2, 0);
+        headBox.rotation.z = side * 0.22;
+        headBox.castShadow = true;
+        group.add(headBox);
+
+        // Accent-colored valve covers
+        const vc = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.82, 0.28, 0.68),
+          new THREE.MeshStandardMaterial({ color: accentHex, metalness: 0.7, roughness: 0.28 }));
+        vc.position.set(side * 0.6, blockH / 2 + 0.62, 0);
+        vc.castShadow = true;
+        group.add(vc);
+      });
+
+      if (intake) {
+        const h = intake.powerCurve === 'race' ? 0.65 : intake.powerCurve === 'high' ? 0.52 : intake.powerCurve === 'broad' ? 0.42 : 0.38;
+        const intakeIsAluminum = intake.powerCurve === 'race';
+        const manifold = new THREE.Mesh(new THREE.BoxGeometry(blockW * 0.62, h, 1.2 * scale),
+          new THREE.MeshStandardMaterial({ color: intakeIsAluminum ? 0x888880 : 0x1e1e26, metalness: intakeIsAluminum ? 0.82 : 0.5, roughness: 0.4 }));
+        manifold.position.y = blockH / 2 + h * 0.38;
+        group.add(manifold);
+
+        // 8 individual intake runners
+        for (let i = 0; i < 4; i++) {
+          [-1, 1].forEach(side => {
+            const runner = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, h * 1.1, 8),
+              new THREE.MeshStandardMaterial({ color: 0x22222a, metalness: 0.5, roughness: 0.45 }));
+            runner.position.set(side * 0.32, blockH / 2 + h * 0.18, (-0.45 + i * 0.3) * scale);
+            runner.rotation.z = side * 0.18;
+            group.add(runner);
+          });
+        }
+
+        // Throttle body
+        const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.28, 16),
+          new THREE.MeshStandardMaterial({ color: 0x252530, metalness: 0.85, roughness: 0.2 }));
+        tb.rotation.z = Math.PI / 2;
+        tb.position.set(0, blockH / 2 + h * 0.5, -(0.6 * scale) - 0.05);
+        group.add(tb);
+      }
     }
 
     if (fi && fi.type === 'turbo') {
+      // Turbo housing
       const turbo = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.5, 24),
         new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.95, roughness: 0.2 }));
       turbo.rotation.z = Math.PI / 2;
       turbo.position.set(-1.8, 0.2, 0.8);
       group.add(turbo);
+      // Compressor wheel
+      const compressor = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.15, 16),
+        new THREE.MeshStandardMaterial({ color: 0xd0d4d8, metalness: 0.95, roughness: 0.1 }));
+      compressor.rotation.z = Math.PI / 2;
+      compressor.position.set(-2.07, 0.2, 0.8);
+      group.add(compressor);
+      // Heat glow from exhaust housing
+      const turboGlow = new THREE.PointLight(0xff4400, 1.8, 2.5);
+      turboGlow.position.set(-1.8, 0.2, 0.8);
+      group.add(turboGlow);
     } else if (fi && fi.type === 'roots') {
       const blower = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.8),
         new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.7, roughness: 0.3 }));
       blower.position.y = 1.95;
       group.add(blower);
+      // Blower fins
+      for (let i = 0; i < 5; i++) {
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.04, 0.75),
+          new THREE.MeshStandardMaterial({ color: 0x888890, metalness: 0.9, roughness: 0.2 }));
+        fin.position.y = 1.95 + 0.08 + i * 0.09;
+        group.add(fin);
+      }
+    } else if (fi && fi.type === 'centri') {
+      const centri = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 0.55, 24),
+        new THREE.MeshStandardMaterial({ color: 0xc8c8c4, metalness: 0.92, roughness: 0.15 }));
+      centri.rotation.z = Math.PI / 2;
+      centri.position.set(1.6, 0.6, 0.5);
+      group.add(centri);
+    } else if (fi && fi.type === 'nitrous') {
+      // NOS bottle
+      const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 12),
+        new THREE.MeshStandardMaterial({ color: 0x1144ff, metalness: 0.8, roughness: 0.2 }));
+      bottle.rotation.z = Math.PI / 2;
+      bottle.position.set(1.4, -0.1, -0.5);
+      group.add(bottle);
     }
   }, [build]);
 
@@ -792,22 +885,20 @@ export default function EngineBuilder() {
     { id: 'fuel', label: 'FUEL SYS' },
   ];
 
-  // FIX: styles.card had a template literal opened with ` but closed with ' (syntax error).
-  // Also added position:'relative' so the absolutely-positioned cost badge stays inside the card.
   const styles = {
     app: { fontFamily: '"JetBrains Mono","SF Mono","Roboto Mono",monospace', background: '#0a0a0c', color: '#e8e8ea', minHeight: '100vh' },
-    header: { borderBottom: '1px solid #1a1a1e', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(180deg,#111114 0%,#0a0a0c 100%)' },
-    logo: { fontFamily: '"Rajdhani",sans-serif', fontWeight: 700, fontSize: '24px', letterSpacing: '0.08em', color: accent },
+    header: { borderBottom: `1px solid ${accent}44`, padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(180deg,#111114 0%,#0a0a0c 100%)', boxShadow: `0 1px 24px ${accent}22` },
+    logo: { fontFamily: '"Rajdhani",sans-serif', fontWeight: 700, fontSize: '26px', letterSpacing: '0.1em', color: accent, textShadow: `0 0 20px ${accent}88` },
     familySwitcher: { display: 'flex', gap: '6px' },
-    familyBtn: (active, fam) => ({ padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '12px', border: `1px solid ${active ? ENGINE_FAMILIES[fam].accent : '#2a2a2e'}`, background: active ? ENGINE_FAMILIES[fam].accent + '22' : 'transparent', color: active ? ENGINE_FAMILIES[fam].accent : '#666', transition: 'all 0.15s' }),
+    familyBtn: (active, fam) => ({ padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '12px', border: `1px solid ${active ? ENGINE_FAMILIES[fam].accent : '#2a2a2e'}`, background: active ? ENGINE_FAMILIES[fam].accent + '22' : 'transparent', color: active ? ENGINE_FAMILIES[fam].accent : '#555', transition: 'all 0.15s', boxShadow: active ? `0 0 12px ${ENGINE_FAMILIES[fam].accent}55` : 'none' }),
     main: { display: 'grid', gridTemplateColumns: '320px 1fr 360px', gap: 0, height: 'calc(100vh - 60px)' },
     panel: { background: '#0c0c0f', borderRight: '1px solid #1a1a1e', overflowY: 'auto', padding: '16px' },
     rightPanel: { background: '#0c0c0f', borderLeft: '1px solid #1a1a1e', overflowY: 'auto', padding: '16px' },
     canvas: { position: 'relative', background: '#0a0a0c', overflow: 'hidden' },
-    section: { fontSize: '11px', fontWeight: 700, letterSpacing: '0.2em', color: '#888', marginBottom: '8px', borderBottom: '1px solid #1a1a1e', paddingBottom: '6px' },
-    tab: (active) => ({ flex: '1', padding: '8px 10px', background: active ? accent : '#15151a', color: active ? '#0a0a0c' : '#888', border: `1px solid ${active ? accent : '#1a1a1e'}`, cursor: 'pointer', fontSize: '10px', fontWeight: 700 }),
-    card: (sel) => ({ position: 'relative', padding: '12px', marginBottom: '6px', background: sel ? '#1a1410' : '#15151a', border: `1px solid ${sel ? accent : '#1a1a1e'}`, cursor: 'pointer' }),
-    button: { width: '100%', padding: '10px', background: accent, color: '#0a0a0c', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '11px', marginBottom: '6px' },
+    section: { fontSize: '11px', fontWeight: 700, letterSpacing: '0.2em', color: '#666', marginBottom: '8px', borderBottom: '1px solid #1a1a1e', paddingBottom: '6px' },
+    tab: (active) => ({ flex: '1', padding: '8px 10px', background: active ? accent : '#15151a', color: active ? '#0a0a0c' : '#666', border: `1px solid ${active ? accent : '#1a1a1e'}`, cursor: 'pointer', fontSize: '10px', fontWeight: 700, transition: 'all 0.12s', boxShadow: active ? `0 0 8px ${accent}66` : 'none' }),
+    card: (sel) => ({ position: 'relative', padding: '12px', marginBottom: '6px', background: sel ? `linear-gradient(135deg,${accent}18 0%,#15151a 100%)` : '#15151a', border: `1px solid ${sel ? accent : '#222226'}`, boxShadow: sel ? `0 0 18px ${accent}44, inset 0 0 24px ${accent}0a` : 'none', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s' }),
+    button: { width: '100%', padding: '10px', background: accent, color: '#0a0a0c', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '11px', marginBottom: '6px', boxShadow: `0 0 12px ${accent}55` },
     issue: (sev) => ({ padding: '8px', marginBottom: '6px', fontSize: '11px', borderLeft: `3px solid ${sev === 'error' ? '#ff3344' : sev === 'warn' ? '#ffaa00' : '#3388ff'}`, background: sev === 'error' ? '#2a1518' : sev === 'warn' ? '#2a2515' : '#15202a', color: sev === 'error' ? '#ff8888' : sev === 'warn' ? '#ffcc66' : '#88bbff' }),
   };
 
@@ -844,22 +935,49 @@ export default function EngineBuilder() {
             ))}
           </div>
           <div style={styles.section}>Parts</div>
-          {currentParts.map(part => (
-            <div key={part.id} style={styles.card(build[activeTab] === part.id)} onClick={() => setBuild({ ...build, [activeTab]: part.id })}>
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{part.name}</div>
-              <div style={{ fontSize: '11px', color: '#666' }}>
-                {activeTab === 'block' && `${part.displacement}ci · ${part.bore}" × ${part.stroke}"`}
-                {activeTab === 'heads' && `${part.flow} cfm · ${part.chamber}cc`}
-                {activeTab === 'cam' && `${part.dur}° · ${part.lift.toFixed(3)}" · ${part.lsa}° LSA`}
-                {activeTab === 'intake' && part.powerCurve}
-                {activeTab === 'forcedInduction' && (part.boost > 0 ? `${part.boost} psi` : 'NA')}
-                {activeTab === 'fuel' && `${part.flowRate} ${part.e85 ? '(E85)' : ''}`}
-              </div>
-              <div style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '12px', color: accent, fontWeight: 700 }}>
-                ${part.cost}
-              </div>
-            </div>
-          ))}
+          {(() => {
+            // Compute per-tab max values for spec bars
+            const maxBlock = Math.max(...currentParts.map(p => p.displacement || 0));
+            const maxFlow = Math.max(...currentParts.map(p => p.flow || 0));
+            const maxLift = Math.max(...currentParts.map(p => p.lift || 0));
+            const maxBoost = Math.max(...currentParts.map(p => p.boost || 0));
+            const maxFlowRate = Math.max(...currentParts.map(p => p.flowRate || 0));
+            return currentParts.map(part => {
+              const sel = build[activeTab] === part.id;
+              let barPct = 0;
+              if (activeTab === 'block' && maxBlock) barPct = part.displacement / maxBlock;
+              else if (activeTab === 'heads' && maxFlow) barPct = part.flow / maxFlow;
+              else if (activeTab === 'cam' && maxLift) barPct = part.lift / maxLift;
+              else if (activeTab === 'forcedInduction' && maxBoost) barPct = maxBoost ? part.boost / maxBoost : 0;
+              else if (activeTab === 'fuel' && maxFlowRate) barPct = part.flowRate / maxFlowRate;
+              return (
+                <div key={part.id} style={styles.card(sel)} onClick={() => setBuild({ ...build, [activeTab]: part.id })}>
+                  <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '3px', paddingRight: '52px' }}>{part.name}</div>
+                  <div style={{ fontSize: '11px', color: sel ? '#aaa' : '#666', marginBottom: '6px' }}>
+                    {activeTab === 'block' && `${part.displacement}ci · ${part.bore}" × ${part.stroke}"`}
+                    {activeTab === 'heads' && `${part.flow} cfm · ${part.chamber}cc chamber`}
+                    {activeTab === 'cam' && `${part.dur}° dur · ${part.lift.toFixed(3)}" lift · ${part.lsa}° LSA`}
+                    {activeTab === 'intake' && part.powerCurve.toUpperCase()}
+                    {activeTab === 'forcedInduction' && (part.boost > 0 ? `${part.boost} psi boost` : 'Naturally Aspirated')}
+                    {activeTab === 'fuel' && `${part.flowRate} ${part.e85 ? '· E85 capable' : ''}`}
+                  </div>
+                  {part.notes && (
+                    <div style={{ fontSize: '10px', color: sel ? '#888' : '#444', fontStyle: 'italic', marginBottom: barPct > 0 ? '8px' : 0 }}>
+                      {part.notes}
+                    </div>
+                  )}
+                  {barPct > 0 && (
+                    <div style={{ height: '2px', background: '#1a1a1e', borderRadius: '1px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${barPct * 100}%`, background: sel ? accent : '#333', borderRadius: '1px', transition: 'width 0.3s' }} />
+                    </div>
+                  )}
+                  <div style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '12px', color: accent, fontWeight: 700 }}>
+                    ${part.cost.toLocaleString()}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
 
         {/* CENTER */}
@@ -869,38 +987,44 @@ export default function EngineBuilder() {
             <div style={{ position: 'absolute', top: '16px', left: '16px', fontSize: '10px', color: '#666', background: 'rgba(0,0,0,0.5)', padding: '8px 12px', borderRadius: '4px' }}>
               DRAG TO ROTATE · SCROLL TO ZOOM
             </div>
-            <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px', display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 1, background: 'rgba(0,0,0,0.7)', padding: '12px', borderTop: `2px solid ${accent}` }}>
-                <div style={{ fontSize: '10px', color: '#666' }}>PEAK HP</div>
-                <div style={{ fontSize: '36px', fontWeight: 700, color: accent }}>{peak.hp}</div>
-                <div style={{ fontSize: '10px', color: '#666' }}>@ {peak.hpRpm} RPM</div>
-              </div>
-              <div style={{ flex: 1, background: 'rgba(0,0,0,0.7)', padding: '12px', borderTop: `2px solid ${accent}` }}>
-                <div style={{ fontSize: '10px', color: '#666' }}>PEAK TQ</div>
-                <div style={{ fontSize: '36px', fontWeight: 700, color: accent }}>{peak.tq}</div>
-                <div style={{ fontSize: '10px', color: '#666' }}>@ {peak.tqRpm} RPM</div>
-              </div>
-              <div style={{ flex: 1, background: 'rgba(0,0,0,0.7)', padding: '12px', borderTop: `2px solid ${accent}` }}>
-                <div style={{ fontSize: '10px', color: '#666' }}>COST</div>
-                <div style={{ fontSize: '36px', fontWeight: 700, color: accent }}>${(cost / 1000).toFixed(1)}k</div>
-                <div style={{ fontSize: '10px', color: '#666' }}>parts only</div>
-              </div>
+            <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px', display: 'flex', gap: '10px' }}>
+              {[
+                { label: 'PEAK HP', value: peak.hp, sub: `@ ${peak.hpRpm} RPM` },
+                { label: 'PEAK TQ', value: `${peak.tq}`, sub: `@ ${peak.tqRpm} RPM` },
+                { label: 'BUILD COST', value: `$${(cost / 1000).toFixed(1)}k`, sub: 'parts only' },
+              ].map(({ label, value, sub }) => (
+                <div key={label} style={{ flex: 1, background: 'rgba(8,8,10,0.85)', padding: '12px 14px', borderTop: `2px solid ${accent}`, boxShadow: `0 0 20px ${accent}33, inset 0 0 30px ${accent}08`, backdropFilter: 'blur(4px)' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.18em', color: '#888', marginBottom: '4px' }}>{label}</div>
+                  <div style={{ fontSize: '34px', fontWeight: 700, color: accent, lineHeight: 1, textShadow: `0 0 24px ${accent}` }}>{value}</div>
+                  <div style={{ fontSize: '10px', color: '#555', marginTop: '4px' }}>{sub}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div style={{ height: '45%', padding: '16px', background: '#0c0c0f', borderTop: '1px solid #1a1a1e' }}>
-            <div style={styles.section}>Dyno {compareWith && `· vs "${compareWith.name}" (${comparePeak.hp} hp)`}</div>
+          <div style={{ height: '45%', padding: '16px', background: '#0c0c0f', borderTop: `1px solid ${accent}22` }}>
+            <div style={styles.section}>Dyno {compareWith && `· vs "${compareWith.name}" (${comparePeak.hp} hp / ${comparePeak.tq} tq)`}</div>
             <ResponsiveContainer width="100%" height="90%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1e" />
-                <XAxis dataKey="rpm" stroke="#666" fontSize={10} />
-                <YAxis stroke="#666" fontSize={10} />
-                <Tooltip contentStyle={{ background: '#15151a', border: '1px solid #1a1a1e', color: '#e8e8ea' }} />
-                <Legend wrapperStyle={{ fontSize: '10px' }} />
-                <Line type="monotone" dataKey="hp" stroke={accent} strokeWidth={2} dot={false} name="HP" />
-                <Line type="monotone" dataKey="tq" stroke={accent} strokeWidth={2} dot={false} strokeDasharray="4 2" name="TQ" />
-                {compareWith && <Line type="monotone" dataKey="hp_b" stroke="#3388ff" strokeWidth={1.5} dot={false} name="HP vs" />}
-              </LineChart>
+              <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="hpGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={accent} stopOpacity={0.28} />
+                    <stop offset="95%" stopColor={accent} stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="tqGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={accent} stopOpacity={0.12} />
+                    <stop offset="95%" stopColor={accent} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 4" stroke="#1a1a20" vertical={false} />
+                <XAxis dataKey="rpm" stroke="#444" fontSize={10} tickLine={false} axisLine={{ stroke: '#222' }} tickFormatter={v => `${(v / 1000).toFixed(1)}k`} />
+                <YAxis stroke="#444" fontSize={10} tickLine={false} axisLine={false} width={38} />
+                <Tooltip contentStyle={{ background: '#0e0e12', border: `1px solid ${accent}55`, color: '#e8e8ea', fontSize: '11px', borderRadius: '2px' }} labelFormatter={v => `${v} RPM`} />
+                <Legend wrapperStyle={{ fontSize: '10px', color: '#888' }} />
+                <Area type="monotone" dataKey="hp" stroke={accent} strokeWidth={2.5} fill="url(#hpGrad)" dot={false} name="HP" activeDot={{ r: 4, fill: accent }} />
+                <Area type="monotone" dataKey="tq" stroke={accent} strokeWidth={2} strokeDasharray="5 3" fill="url(#tqGrad)" dot={false} name="TQ" activeDot={{ r: 4, fill: accent }} />
+                {compareWith && <Area type="monotone" dataKey="hp_b" stroke="#3388ff" strokeWidth={1.5} fill="none" dot={false} name={`HP (${compareWith.name})`} activeDot={{ r: 3, fill: '#3388ff' }} />}
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
