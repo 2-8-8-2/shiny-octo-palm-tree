@@ -9,7 +9,7 @@ const source = readFileSync(resolve(__dirname, '../App.jsx'), 'utf8');
 const start = source.indexOf('const ENGINE_FAMILIES');
 const end = source.indexOf('function Engine3D');
 assert.ok(start >= 0 && end > start, 'Application logic boundaries must exist');
-const api = new Script(source.slice(start, end) + '\n({ ENGINE_FAMILIES, getCatalog, sanitizeBuild, hasConsistentDisplacement, checkCompatibility, simulateDyno, peakStats, combineDynoCurves, getShopUrl });').runInThisContext();
+const api = new Script(source.slice(start, end) + '\n({ ENGINE_FAMILIES, getCatalog, sanitizeBuild, normalizeEngineProfile, getFitmentReport, canShopPart, hasConsistentDisplacement, checkCompatibility, simulateDyno, peakStats, combineDynoCurves, getShopUrl });').runInThisContext();
 const defaults = family => ({ family, ...api.ENGINE_FAMILIES[family].defaultBuild });
 
 test('Corrupt saved builds normalize to usable defaults', () => {
@@ -92,4 +92,81 @@ test('Retailer links preserve encoded queries and reject invalid inputs', () => 
 test('427 LSX search does not send buyers to a 454R engine', () => {
   const part = api.getCatalog('ls').block.find(part => part.id === 'b_lsx');
   assert.ok(!part.shopSearch.includes('454'));
+});
+
+test('Legacy AFR 305 oval selection is preserved and blocked, not silently swapped', () => {
+  const build = api.sanitizeBuild({ ...defaults('bbc'), heads: 'bbc_oval_afr' });
+  assert.equal(build.heads, 'bbc_oval_afr');
+  assert.ok(api.checkCompatibility(build).some(issue => issue.message.includes('incorrect catalog entry')));
+  assert.deepEqual(api.simulateDyno(build), []);
+  assert.equal(api.canShopPart(build, 'heads', api.getCatalog('bbc').heads.find(head => head.id === build.heads)), false);
+});
+
+test('AFR 265 minimum bore prevents an assumed stock 396 purchase', () => {
+  const build = { ...defaults('bbc'), heads: 'bbc_afr_265' };
+  assert.ok(api.checkCompatibility(build).some(issue => issue.message.includes('requires at least a 4.125')));
+  assert.equal(api.getFitmentReport(build).status, 'blocked');
+  assert.deepEqual(api.simulateDyno(build), []);
+  assert.equal(api.canShopPart(build, 'heads', api.getCatalog('bbc').heads.find(head => head.id === build.heads)), false);
+});
+
+test('Measured bore checks the single requirement without approving the whole build', () => {
+  const build = { ...defaults('bbc'), heads: 'bbc_afr_265', engineProfile: { bore: 4.125, generation: 'mark_iv', intendedUse: 'race' } };
+  const report = api.getFitmentReport(build);
+  assert.equal(report.checks.find(check => check.key === 'head_bore').status, 'checked');
+  assert.equal(report.status, 'needs_review');
+  assert.ok(report.required.some(item => item.message.includes('1017-1')));
+  assert.ok(report.required.some(item => item.message.includes('135-3703')));
+  assert.ok(report.checks.some(check => check.key === 'physical_clearance' && check.status === 'unknown'));
+});
+
+test('A catalog bore that meets a minimum remains unverified until measured', () => {
+  const build = { ...defaults('bbc'), block: 'bbc_402', heads: 'bbc_afr_265' };
+  assert.equal(api.getFitmentReport(build).checks.find(check => check.key === 'head_bore').status, 'unknown');
+});
+
+test('AFR 305 is rectangle port with a 4.250-inch minimum bore', () => {
+  const head = api.getCatalog('bbc').heads.find(head => head.id === 'bbc_afr_305');
+  assert.equal(head.portStyle, 'rect');
+  assert.equal(head.minBore, 4.25);
+  const build = { ...defaults('bbc'), heads: head.id, engineProfile: { bore: 4.125 } };
+  const issues = api.checkCompatibility(build);
+  assert.ok(issues.some(issue => issue.message.includes('requires at least a 4.250')));
+  assert.ok(issues.some(issue => issue.message.includes("won't bolt")));
+});
+
+test('Changing measured bore re-evaluates the 305 requirement', () => {
+  const build = { ...defaults('bbc'), block: 'bbc_454', heads: 'bbc_afr_305', intake: 'bbc_i_rect_rpm', engineProfile: { bore: 4.25, intendedUse: 'race' } };
+  assert.equal(api.getFitmentReport(build).status, 'needs_review');
+  assert.ok(!api.checkCompatibility(build).some(issue => issue.message.includes('requires at least')));
+  build.engineProfile.bore = 4.249;
+  assert.equal(api.getFitmentReport(build).status, 'blocked');
+});
+
+test('Manufacturer road-use restriction blocks a conflicting intended use', () => {
+  const build = { ...defaults('bbc'), block: 'bbc_454', heads: 'bbc_afr_305', intake: 'bbc_i_rect_rpm', engineProfile: { bore: 4.25, intendedUse: 'road' } };
+  assert.ok(api.checkCompatibility(build).some(issue => issue.message.includes('public-road')));
+  assert.equal(api.canShopPart(build, 'heads', api.getCatalog('bbc').heads.find(head => head.id === build.heads)), false);
+});
+
+test('Unknown details and generic parts never yield a fitment approval', () => {
+  for (const family of Object.keys(api.ENGINE_FAMILIES)) {
+    assert.equal(api.getFitmentReport(defaults(family)).status, 'needs_review');
+    assert.ok(api.getFitmentReport(defaults(family)).checks.some(check => check.status === 'unknown'));
+  }
+});
+
+test('Engine profile survives storage and rejects invalid or invented details', () => {
+  const saved = api.sanitizeBuild({ ...defaults('bbc'), engineProfile: { bore: 4.125, generation: 'mark_iv', intendedUse: 'race' } });
+  assert.deepEqual(saved.engineProfile, { bore: 4.125, generation: 'mark_iv', intendedUse: 'race' });
+  for (const bore of [NaN, Infinity, -1, 9, '4.125x', '', '4.', null]) assert.equal(api.normalizeEngineProfile({ bore }).bore, null);
+  assert.equal(api.normalizeEngineProfile({ bore: '4.125' }).bore, 4.125);
+  assert.deepEqual(api.normalizeEngineProfile({ generation: 'guessed', intendedUse: 'street', bore: 4.125 }), { generation: 'unknown', intendedUse: 'unknown', bore: 4.125 });
+});
+
+test('Air-Gap shopping uses the corrected port-specific manufacturer numbers', () => {
+  const catalog = api.getCatalog('bbc');
+  assert.equal(catalog.intake.find(part => part.id === 'bbc_i_singleplane').partNumber, '7561');
+  assert.equal(catalog.intake.find(part => part.id === 'bbc_i_rect_rpm').partNumber, '7562');
+  assert.ok(!catalog.intake.find(part => part.id === 'bbc_i_singleplane').shopSearch.includes('single plane'));
 });

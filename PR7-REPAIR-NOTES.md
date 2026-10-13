@@ -23,7 +23,7 @@ node --test tests/logic.test.cjs
 node tests/calibration-audit.cjs
 ```
 
-The reliability suite has 10 tests. The calibration audit deliberately exits with status 1 while the PR's claimed stock-engine targets remain unmet. Passing the reliability tests is not evidence of accurate horsepower predictions.
+The reliability suite now has 20 tests. See FITMENT-MILESTONE.md for the subsequent compatibility pass. The calibration audit deliberately exits with status 1 while the PR's claimed stock-engine targets remain unmet. Passing the reliability tests is not evidence of accurate horsepower predictions.
 
 Browser smoke checks use React, React DOM, Three.js, Recharts, esbuild and Playwright. Install those in an isolated QA directory, set NODE_PATH to that directory's node_modules, install Playwright Chromium, then run:
 

@@ -54,6 +54,39 @@ async function main() {
         assert.equal(await page.getByText('NaN', { exact: false }).count(), 0);
         await page.getByRole('button', { name: 'LOAD', exact: true }).click();
         assert.equal(await page.getByRole('textbox', { name: 'Build name' }).inputValue(), 'Smoke test build');
+        await page.getByRole('button', { name: 'BIG BLOCK', exact: true }).click();
+        await page.getByRole('button', { name: 'HEADS', exact: true }).click();
+        const afr265 = page.getByRole('button', { name: 'Select AFR 265cc Oval Port — Variant Required', exact: true });
+        await afr265.click();
+        const review = page.getByRole('region', { name: 'Fitment review', exact: true });
+        await review.getByText('Known conflict — resolve it before ordering.', { exact: true }).waitFor();
+        assert.equal(await afr265.locator('..').getByRole('link', { name: 'JEGS ↗', exact: true }).count(), 0);
+        const bore = page.getByRole('textbox', { name: 'Measured cylinder bore', exact: true });
+        await bore.pressSequentially('4.125');
+        assert.equal(await bore.inputValue(), '4.125');
+        await page.getByRole('combobox', { name: 'Block generation', exact: true }).selectOption('mark_iv');
+        await page.getByRole('combobox', { name: 'Intended use', exact: true }).selectOption('race');
+        await review.getByText('Needs verification — this build is not cleared for ordering.', { exact: true }).waitFor();
+        await page.getByRole('combobox', { name: 'Intended use', exact: true }).selectOption('road');
+        await review.getByText('Known conflict — resolve it before ordering.', { exact: true }).waitFor();
+        assert.equal(await afr265.locator('..').getByRole('link', { name: 'JEGS ↗', exact: true }).count(), 0);
+        await page.getByRole('combobox', { name: 'Intended use', exact: true }).selectOption('race');
+        if (process.env.SMOKE_SCREENSHOT_DIR) {
+          fs.mkdirSync(process.env.SMOKE_SCREENSHOT_DIR, { recursive: true });
+          await page.screenshot({ path: path.join(process.env.SMOKE_SCREENSHOT_DIR, `bbc-${width}.png`), fullPage: true });
+        }
+        await page.getByRole('textbox', { name: 'Build name' }).fill('BBC profile test');
+        await page.getByRole('button', { name: '+ SAVE BUILD', exact: true }).click();
+        await page.getByText('Saved (2)', { exact: true }).waitFor();
+        await page.reload();
+        await page.getByText('Saved (2)', { exact: true }).waitFor();
+        const saved = page.getByText('BBC profile test', { exact: true }).locator('..');
+        await saved.getByRole('button', { name: 'LOAD', exact: true }).click();
+        assert.equal(await bore.inputValue(), '4.125');
+        assert.equal(await page.getByRole('combobox', { name: 'Block generation', exact: true }).inputValue(), 'mark_iv');
+        await page.getByRole('button', { name: 'BLOCK', exact: true }).click();
+        await page.getByRole('button', { name: 'Select 454ci — Factory Big Dog', exact: true }).click();
+        assert.equal(await bore.inputValue(), '', 'A new block does not inherit measured bore');
         await page.getByRole('button', { name: 'COYOTE 5.0', exact: true }).click();
         const invalid = page.getByRole('button', { name: 'Select 408ci Stroker (4.0" stroke)', exact: true });
         await invalid.click();
@@ -65,7 +98,7 @@ async function main() {
           fs.mkdirSync(process.env.SMOKE_SCREENSHOT_DIR, { recursive: true });
           await page.screenshot({ path: path.join(process.env.SMOKE_SCREENSHOT_DIR, `${width}.png`), fullPage: true });
         }
-        console.log(`PASS ${width}px: render, layout, keyboard selection, five engine families, save/reload/load, invalid-build safeguards`);
+        console.log(`PASS ${width}px: render, layout, keyboard selection, save/load, BBC bore and road-use checks, profile persistence, block-change reset, invalid-build safeguards`);
       } finally {
         await browser.close();
       }

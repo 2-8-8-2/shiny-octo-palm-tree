@@ -44,7 +44,7 @@ const ENGINE_FAMILIES = {
     fuelType: 'carb',
     defaultBuild: {
       name: 'My 396 Build',
-      block: 'bbc_396', heads: 'bbc_oval_afr', cam: 'bbc_c_street',
+      block: 'bbc_396', heads: 'bbc_oval_cast', cam: 'bbc_c_street',
       intake: 'bbc_i_singleplane', forcedInduction: 'fi_none', fuel: 'bbc_holley_650',
     },
   },
@@ -188,7 +188,9 @@ const CATALOG_BBC = {
   heads: [
     { id: 'bbc_oval_cast', name: 'Oval Port Cast Iron', flow: 270, chamber: 118, compression: 0, springRate: 'stock', cost: 300, brand: 'GM OEM', shopSearch: 'big block Chevy oval port cast iron cylinder heads', portStyle: 'oval', notes: 'Bones of a million muscle cars.' },
     { id: 'bbc_oval_edel', name: 'Edelbrock RPM Oval (Aluminum)', flow: 305, chamber: 110, compression: 1.0, springRate: 'mild', cost: 1100, brand: 'Edelbrock', shopSearch: 'Edelbrock RPM big block Chevy oval port aluminum cylinder heads', portStyle: 'oval', notes: '50 lb savings. Good for NA or mild boost.' },
-    { id: 'bbc_oval_afr', name: 'AFR 305 Oval Port (Aluminum)', flow: 330, chamber: 107, compression: 1.4, springRate: 'aggressive', cost: 1800, brand: 'AFR', shopSearch: 'AFR 305 big block Chevy oval port aluminum cylinder heads', portStyle: 'oval', notes: 'Best oval port available.' },
+    { id: 'bbc_oval_afr', name: 'Legacy AFR 305 Oval — Invalid Entry', flow: 330, chamber: 107, compression: 1.4, springRate: 'aggressive', cost: 1800, brand: 'Unverified', retired: true, portStyle: 'oval', notes: 'Kept only to identify old saved builds. AFR 305 is rectangular port; select a real head family below.' },
+    { id: 'bbc_afr_265', name: 'AFR 265cc Oval Port — Variant Required', flow: 333, flowLift: 0.600, chamber: 109, compression: 0, springRate: 'aggressive', cost: 2653, brand: 'AFR', shopSearch: 'AFR 265cc BBC oval port cylinder heads', portStyle: 'oval', minBore: 4.125, roadRestricted: true, sourceUrl: 'https://www.airflowresearch.com/265cc-bbc-oval-port-cylinder-head/p603', notes: 'Manufacturer specs checked: minimum 4.125-inch bore. Chamber and spring variants exist; choose the exact assembly before buying. Flow shown is partial-CNC chart at .600 lift. Price is an example pair estimate.' },
+    { id: 'bbc_afr_305', name: 'AFR 305cc Rectangle Port — Variant Required', flow: 341, flowLift: 0.600, chamber: 117, compression: 0, springRate: 'aggressive', cost: 2800, brand: 'AFR', shopSearch: 'AFR 305cc BBC rectangle port cylinder heads', portStyle: 'rect', minBore: 4.250, roadRestricted: true, sourceUrl: 'https://www.airflowresearch.com/305cc-bbc-rectangle-port-cylinder-head/p573', notes: 'Manufacturer specs checked: minimum 4.250-inch bore. Exact chamber and spring assembly still required. Flow shown is partial-CNC chart at .600 lift. Price is a planning placeholder.' },
     { id: 'bbc_rect_cast', name: 'Rectangular Port Cast', flow: 310, chamber: 118, compression: 0.2, springRate: 'mild', cost: 450, brand: 'GM OEM', shopSearch: 'big block Chevy rectangular port cast iron cylinder heads', portStyle: 'rect', notes: 'Better flow than oval. Needs matching intake.' },
     { id: 'bbc_rect_brodix', name: 'Brodix BB-2 Plus Rect (Aluminum)', flow: 370, chamber: 112, compression: 1.6, springRate: 'aggressive', cost: 2200, brand: 'Brodix', shopSearch: 'Brodix BB-2 Plus big block Chevy rectangular port aluminum cylinder heads', portStyle: 'rect', notes: 'Pro-level street/strip weapon.' },
     { id: 'bbc_rect_afr', name: 'AFR 385 Rect Port Race (Aluminum)', flow: 390, chamber: 108, compression: 1.8, springRate: 'race', cost: 3200, brand: 'AFR', shopSearch: 'AFR 385 big block Chevy rectangular port race aluminum heads CNC', portStyle: 'rect', notes: 'CNC race heads.' },
@@ -204,8 +206,8 @@ const CATALOG_BBC = {
   intake: [
     { id: 'bbc_i_dualplane', name: 'Edelbrock Performer (Dual Plane)', flowMatch: 'oval', powerCurve: 'low', cost: 350, brand: 'Edelbrock', shopSearch: 'Edelbrock Performer BBC oval port dual plane intake manifold', notes: 'Best street intake. Strong low/mid torque.' },
     { id: 'bbc_i_rpm', name: 'Edelbrock RPM (Dual Plane)', flowMatch: 'oval', powerCurve: 'mid', cost: 480, brand: 'Edelbrock', shopSearch: 'Edelbrock RPM BBC oval port dual plane intake manifold', notes: 'Extends powerband higher.' },
-    { id: 'bbc_i_singleplane', name: 'Edelbrock Air-Gap (Single Plane)', flowMatch: 'oval', powerCurve: 'high', cost: 580, brand: 'Edelbrock', shopSearch: 'Edelbrock Air-Gap BBC oval port single plane intake manifold', notes: 'Top-end focused. Loses some low-end.' },
-    { id: 'bbc_i_rect_rpm', name: 'Edelbrock RPM Air-Gap (Rect Port)', flowMatch: 'rect', powerCurve: 'high', cost: 650, brand: 'Edelbrock', shopSearch: 'Edelbrock RPM Air-Gap BBC rectangular port intake manifold', notes: 'Rect port single plane.' },
+    { id: 'bbc_i_singleplane', name: 'Edelbrock RPM Air-Gap #7561 (Dual Plane)', partNumber: '7561', flowMatch: 'oval', powerCurve: 'mid', cost: 580, brand: 'Edelbrock', shopSearch: 'Edelbrock 7561 RPM Air-Gap oval port intake manifold', sourceUrl: 'https://edelbrock-files-v1.s3-us-west-1.amazonaws.com/catalogs/2025-Edelbrock-Catalog.pdf', notes: 'Oval-port, square-bore carburetor intake. Check head-port dimensions, deck height, choke setup and hood clearance.' },
+    { id: 'bbc_i_rect_rpm', name: 'Edelbrock RPM Air-Gap #7562 (Dual Plane)', partNumber: '7562', flowMatch: 'rect', powerCurve: 'mid', cost: 650, brand: 'Edelbrock', shopSearch: 'Edelbrock 7562 RPM Air-Gap rectangular port intake manifold', sourceUrl: 'https://edelbrock-files-v1.s3-us-west-1.amazonaws.com/catalogs/2025-Edelbrock-Catalog.pdf', notes: 'Rectangle-port intake. Confirm full installation requirements and vehicle clearance.' },
     { id: 'bbc_i_holley_strip', name: 'Holley Strip Dominator (Rect Port)', flowMatch: 'rect', powerCurve: 'race', cost: 880, brand: 'Holley', shopSearch: 'Holley Strip Dominator BBC rectangular port intake manifold', notes: 'Race intake. Hood scoop required.' },
     { id: 'bbc_i_tunnel', name: 'Tunnel Ram (Rect Port)', flowMatch: 'rect', powerCurve: 'race', cost: 1400, brand: 'Holley', shopSearch: 'Holley BBC tunnel ram dual carb intake manifold', notes: 'Dual-carb tunnel ram. Pure race.' },
   ],
@@ -354,12 +356,27 @@ function getStorageAdapter() {
   return null;
 }
 
+function normalizeEngineProfile(raw) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  const bore = typeof value.bore === 'string' && /^\d+(?:\.\d+)?$/.test(value.bore) ? Number(value.bore) : value.bore;
+  return {
+    bore: typeof bore === 'number' && Number.isFinite(bore) && bore >= 3.5 && bore <= 5 ? bore : null,
+    generation: ['mark_iv', 'gen_v', 'gen_vi'].includes(value.generation) ? value.generation : 'unknown',
+    intendedUse: ['road', 'race'].includes(value.intendedUse) ? value.intendedUse : 'unknown',
+  };
+}
+
+function selectedBore(build, block) {
+  return normalizeEngineProfile(build.engineProfile).bore ?? block?.bore;
+}
+
 function sanitizeBuild(raw) {
   const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const fam = Object.hasOwn(ENGINE_FAMILIES, source.family) ? source.family : 'ls';
   const def = ENGINE_FAMILIES[fam].defaultBuild;
   const catalog = getCatalog(fam);
   const result = { family: fam, ...def };
+  result.engineProfile = normalizeEngineProfile(source.engineProfile);
   for (const key of ['block', 'heads', 'cam', 'intake', 'forcedInduction', 'fuel']) {
     if (catalog[key].some(part => part.id === source[key])) result[key] = source[key];
   }
@@ -415,6 +432,16 @@ function checkCompatibility(build) {
   }
   if (block && !hasConsistentDisplacement(block)) {
     issues.push({ severity: 'error', message: 'This block has inconsistent displacement and bore/stroke data. Power estimates and shopping links are unavailable until its specifications are verified.' });
+  }
+  if (head?.retired) {
+    issues.push({ severity: 'error', message: 'This saved head selection refers to an incorrect catalog entry. Select a current head family; it has not been silently replaced.' });
+  }
+  if (build.family === 'bbc' && head?.minBore && selectedBore(build, block) < head.minBore) {
+    const basis = normalizeEngineProfile(build.engineProfile).bore === null ? 'catalog' : 'entered measured';
+    issues.push({ severity: 'error', message: `${head.name} requires at least a ${head.minBore.toFixed(3)}-inch bore. Your ${basis} bore is ${selectedBore(build, block).toFixed(3)} inches. Verify the actual bore and manufacturer requirements before proceeding.`, sourceUrl: head.sourceUrl });
+  }
+  if (build.family === 'bbc' && head?.roadRestricted && normalizeEngineProfile(build.engineProfile).intendedUse === 'road') {
+    issues.push({ severity: 'error', message: 'AFR labels this head family for dedicated racing vehicles, not public-road use. It conflicts with your selected road-use plan.', sourceUrl: head.sourceUrl });
   }
 
   // Port matching
@@ -485,6 +512,69 @@ function checkCompatibility(build) {
   }
 
   return issues;
+}
+
+function canShopPart(build, key, part) {
+  if (!part?.shopSearch || part.retired) return false;
+  if (key === 'block') return hasConsistentDisplacement(part);
+  const catalog = getCatalog(build.family);
+  if (key === 'heads' && build.family === 'bbc') {
+    const block = catalog.block.find(item => item.id === build.block);
+    if (part.minBore && selectedBore(build, block) < part.minBore) return false;
+    if (part.roadRestricted && normalizeEngineProfile(build.engineProfile).intendedUse === 'road') return false;
+  }
+  if (key === 'intake') {
+    const head = catalog.heads.find(item => item.id === build.heads);
+    if (head && part.flowMatch !== 'any' && part.flowMatch !== head.portStyle) return false;
+  }
+  return true;
+}
+
+function getFitmentReport(build) {
+  const catalog = getCatalog(build.family);
+  const checks = [];
+  for (const key of ['block', 'heads', 'cam', 'intake', 'forcedInduction', 'fuel']) {
+    const part = catalog[key].find(item => item.id === build[key]);
+    if (key === 'forcedInduction' && part?.type === 'none') continue;
+    checks.push({ key: `part_${key}`, status: 'unknown', message: part?.partNumber
+      ? `${part.name}: part number recorded; installation requirements still need checking.`
+      : `${part?.name || key}: exact part number or assembly variant still needed.`, sourceUrl: part?.sourceUrl });
+  }
+  const required = [];
+  if (build.family === 'bbc') {
+    const profile = normalizeEngineProfile(build.engineProfile);
+    const head = catalog.heads.find(item => item.id === build.heads);
+    const block = catalog.block.find(item => item.id === build.block);
+    if (head?.minBore) {
+      const bore = selectedBore(build, block);
+      const below = bore < head.minBore;
+      checks.unshift({ key: 'head_bore', status: below ? 'blocked' : profile.bore === null ? 'unknown' : 'checked',
+        message: below ? `Bore conflict: ${bore.toFixed(3)} inches is below the head's ${head.minBore.toFixed(3)}-inch minimum.`
+          : profile.bore === null ? `Catalog bore meets the head's ${head.minBore.toFixed(3)}-inch minimum; enter the actual measured bore to check your engine.`
+            : `Entered bore meets the head's ${head.minBore.toFixed(3)}-inch minimum. This checks bore size only.`, sourceUrl: head.sourceUrl });
+    }
+    checks.push({ key: 'block_generation', status: profile.generation === 'unknown' ? 'unknown' : 'checked', message: profile.generation === 'unknown'
+      ? 'Identify the block generation from its casting details before choosing gaskets and hardware.'
+      : 'Block generation recorded from your input; match gaskets and hardware to it.' });
+    checks.push({ key: 'physical_clearance', status: 'unknown', message: 'Piston-to-valve clearance, piston-to-head clearance, pushrod length and spring setup require actual component specs and measurements.', sourceUrl: head?.sourceUrl });
+    checks.push({ key: 'vehicle_clearance', status: 'unknown', message: 'Confirm intake/air-cleaner hood clearance, exhaust fitment and accessory clearance in the vehicle.' });
+    if (head?.roadRestricted && profile.intendedUse === 'unknown') {
+      checks.push({ key: 'intended_use', status: 'unknown', message: 'AFR lists this head family for dedicated racing vehicles. Choose your intended use to check that restriction.', sourceUrl: head.sourceUrl });
+    }
+    if (head?.id === 'bbc_afr_265') {
+      required.push({ message: profile.generation === 'mark_iv'
+        ? 'Head gaskets: AFR lists Fel-Pro 1017-1 for Mark IV; confirm bore, thickness and coolant passages for your assembly.'
+        : ['gen_v', 'gen_vi'].includes(profile.generation) ? 'Head gaskets: AFR lists Fel-Pro 1047 for Gen V/VI; confirm bore, thickness and coolant passages.'
+          : 'Head gaskets: identify block generation first; Mark IV and Gen V/VI use different recommendations.', sourceUrl: head.sourceUrl });
+      required.push({ message: profile.generation === 'mark_iv' ? 'Head bolts: AFR lists ARP 135-3703 for Mark IV; confirm the exact head assembly and installation instructions.'
+        : 'Head bolts or studs: confirm the correct kit for the block generation and head assembly.', sourceUrl: head.sourceUrl });
+      required.push({ message: 'Plan matching intake/exhaust gaskets, full roller rockers, measured pushrods and a spring package matched to the exact cam/lifters.', sourceUrl: head.sourceUrl });
+    } else {
+      required.push({ message: 'Plan head/intake/exhaust gaskets, fasteners, lifters, springs, rockers and measured pushrods. Exact choices depend on the final part numbers.' });
+    }
+  }
+  const blocked = checkCompatibility(build).some(issue => issue.severity === 'error');
+  return { status: blocked ? 'blocked' : 'needs_review', checks, required };
 }
 
 // =====================================================
@@ -1108,6 +1198,11 @@ export default function EngineBuilder() {
   const peak = useMemo(() => peakStats(dyno), [dyno]);
   const cost = useMemo(() => totalCost(build), [build]);
   const issues = useMemo(() => checkCompatibility({ ...build, _estPower: peak.hp }), [build, peak.hp]);
+  const fitment = useMemo(() => getFitmentReport(build), [build]);
+  const engineProfile = normalizeEngineProfile(build.engineProfile);
+  const updateEngineProfile = (patch) => setBuild(previous => ({ ...previous, engineProfile: normalizeEngineProfile({ ...normalizeEngineProfile(previous.engineProfile), ...patch }) }));
+  const selectPart = (key, partId) => setBuild(previous => ({ ...previous, [key]: partId,
+    ...(key === 'block' && previous.block !== partId ? { engineProfile: { ...normalizeEngineProfile(previous.engineProfile), bore: null, generation: 'unknown' } } : {}) }));
 
   const compareDyno = useMemo(() => compareWith ? simulateDyno(compareWith) : [], [compareWith]);
   const comparePeak = useMemo(() => peakStats(compareDyno), [compareDyno]);
@@ -1159,7 +1254,7 @@ export default function EngineBuilder() {
     issue: (sev) => ({ padding: '8px', marginBottom: '6px', fontSize: '11px', borderLeft: `3px solid ${sev === 'error' ? '#ff3344' : sev === 'warn' ? '#ffaa00' : '#3388ff'}`, background: sev === 'error' ? '#2a1518' : sev === 'warn' ? '#2a2515' : '#15202a', color: sev === 'error' ? '#ff8888' : sev === 'warn' ? '#ffcc66' : '#88bbff' }),
   };
 
-  const currentParts = CAT[activeTab] || [];
+  const currentParts = (CAT[activeTab] || []).filter(part => !part.retired || part.id === build[activeTab]);
 
   return (
     <div style={styles.app}>
@@ -1209,12 +1304,12 @@ export default function EngineBuilder() {
               else if (activeTab === 'fuel' && maxFlowRate) barPct = part.flowRate / maxFlowRate;
               return (
                 <div key={part.id} style={styles.card(sel)}>
-                  <button type="button" aria-pressed={sel} aria-label={`Select ${part.name}`} onClick={() => setBuild({ ...build, [activeTab]: part.id })}
+                  <button type="button" aria-pressed={sel} aria-label={`Select ${part.name}`} onClick={() => selectPart(activeTab, part.id)}
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, background: 'transparent', cursor: 'pointer' }} />
                   <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '3px', paddingRight: '52px' }}>{part.name}</div>
                   <div style={{ fontSize: '11px', color: sel ? '#aaa' : '#666', marginBottom: '6px' }}>
                     {activeTab === 'block' && `${part.displacement}ci · ${part.bore}" × ${part.stroke}"`}
-                    {activeTab === 'heads' && `${part.flow} cfm · ${part.chamber}cc chamber`}
+                    {activeTab === 'heads' && `${part.flow} cfm${part.flowLift ? ` @ ${part.flowLift.toFixed(3)} lift` : ''} · ${part.chamber}cc chamber${part.minBore ? ` · ${part.minBore.toFixed(3)} minimum bore` : ''}`}
                     {activeTab === 'cam' && `${part.dur}° dur · ${part.lift.toFixed(3)}" lift · ${part.lsa}° LSA`}
                     {activeTab === 'intake' && part.powerCurve.toUpperCase()}
                     {activeTab === 'forcedInduction' && (part.boost > 0 ? `${part.boost} psi boost` : 'Naturally Aspirated')}
@@ -1232,7 +1327,7 @@ export default function EngineBuilder() {
                       <div style={{ height: '100%', width: `${barPct * 100}%`, background: sel ? accent : '#333', borderRadius: '1px', transition: 'width 0.3s' }} />
                     </div>
                   )}
-                  {part.shopSearch && (activeTab !== 'block' || hasConsistentDisplacement(part)) && (
+                  {canShopPart(build, activeTab, part) && (
                     <div style={{ position: 'relative', display: 'flex', gap: '8px', marginTop: barPct > 0 ? 0 : '8px' }}>
                       <a href={getShopUrl('jegs', part.shopSearch)} target="_blank" rel="noopener noreferrer"
                         style={{ flex: 1, minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0', background: '#181808', border: '1px solid #ffcc0033', color: '#ffcc00', fontSize: '12px', fontWeight: 700, textAlign: 'center', textDecoration: 'none', letterSpacing: '0.12em' }}
@@ -1246,6 +1341,7 @@ export default function EngineBuilder() {
                       </a>
                     </div>
                   )}
+                  {part.sourceUrl && <a href={part.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', minHeight: '44px', color: '#bbb', fontSize: '11px' }}>Manufacturer specifications ↗</a>}
                   <div style={{ pointerEvents: 'none', position: 'absolute', top: '12px', right: '12px', fontSize: '12px', color: accent, fontWeight: 700 }}>
                     ${part.cost.toLocaleString()}
                   </div>
@@ -1266,7 +1362,7 @@ export default function EngineBuilder() {
               {[
                 { label: 'EST. PEAK HP', value: dyno.length ? peak.hp : '—', sub: dyno.length ? `@ ${peak.hpRpm} RPM` : 'Resolve errors first' },
                 { label: 'EST. PEAK TQ', value: dyno.length ? peak.tq : '—', sub: dyno.length ? `lb-ft @ ${peak.tqRpm} RPM` : 'Resolve errors first' },
-                { label: 'EST. COMPRESSION', value: hasConsistentDisplacement(CAT.block.find(part => part.id === build.block)) ? `${calculateCR(build.block, build.heads, CAT)}:1` : '—', sub: 'Catalog approximation' },
+                { label: 'EST. COMPRESSION', value: family !== 'bbc' && hasConsistentDisplacement(CAT.block.find(part => part.id === build.block)) ? `${calculateCR(build.block, build.heads, CAT)}:1` : '—', sub: family === 'bbc' ? 'Needs piston and gasket specs' : 'Catalog approximation' },
                 { label: 'EST. PARTS COST', value: `$${(cost / 1000).toFixed(1)}k`, sub: 'Excludes labor and supporting parts' },
               ].map(({ label, value, sub }) => (
                 <div key={label} style={{ flex: 1, background: 'rgba(8,8,10,0.85)', padding: '12px 14px', borderTop: `2px solid ${accent}`, boxShadow: `0 0 20px ${accent}33, inset 0 0 30px ${accent}08`, backdropFilter: 'blur(4px)' }}>
@@ -1308,7 +1404,41 @@ export default function EngineBuilder() {
 
         {/* RIGHT PANEL */}
         <div style={styles.rightPanel}>
-          <div style={styles.section}>Compatibility</div>
+          {family === 'bbc' && <section aria-label="Engine details" style={{ marginBottom: '20px' }}>
+            <div style={styles.section}>About Your Engine</div>
+            <p style={{ fontSize: '12px', color: '#bbb', lineHeight: 1.5 }}>Not sure? Leave it unknown. Catalog dimensions are planning assumptions, not measurements of your engine.</p>
+            <label style={{ display: 'block', fontSize: '12px', marginBottom: '12px' }}>Block generation
+              <select aria-label="Block generation" value={engineProfile.generation} onChange={event => updateEngineProfile({ generation: event.target.value })} style={{ width: '100%', minHeight: '44px', marginTop: '5px', background: '#15151a', color: '#eee', border: '1px solid #444' }}>
+                <option value="unknown">Not sure yet</option><option value="mark_iv">Mark IV</option><option value="gen_v">Gen V</option><option value="gen_vi">Gen VI</option>
+              </select>
+            </label>
+            <label style={{ display: 'block', fontSize: '12px', marginBottom: '12px' }}>Measured cylinder bore (inches)
+              <input aria-label="Measured cylinder bore" type="text" inputMode="decimal" placeholder="Unknown — ask your machine shop" value={build.engineProfile?.bore ?? ''} onChange={event => { const bore = event.target.value; setBuild(previous => ({ ...previous, engineProfile: { ...normalizeEngineProfile(previous.engineProfile), bore } })); }} style={{ width: '100%', minHeight: '44px', marginTop: '5px', background: '#15151a', color: '#eee', border: '1px solid #444', padding: '8px' }} />
+              {build.engineProfile?.bore !== undefined && build.engineProfile.bore !== null && build.engineProfile.bore !== '' && engineProfile.bore === null && <span style={{ display: 'block', color: '#ffcc66', marginTop: '5px' }}>Enter a bore in inches between 3.500 and 5.000. This entry is not being used for fitment.</span>}
+            </label>
+            <label style={{ display: 'block', fontSize: '12px' }}>Where will it be used?
+              <select aria-label="Intended use" value={engineProfile.intendedUse} onChange={event => updateEngineProfile({ intendedUse: event.target.value })} style={{ width: '100%', minHeight: '44px', marginTop: '5px', background: '#15151a', color: '#eee', border: '1px solid #444' }}>
+                <option value="unknown">Not sure yet</option><option value="road">Public roads / street and strip</option><option value="race">Dedicated racing vehicle</option>
+              </select>
+            </label>
+          </section>}
+          <section aria-label="Fitment review" style={{ marginBottom: '20px' }}>
+            <div style={styles.section}>Fitment Review</div>
+            <div role="status" style={styles.issue(fitment.status === 'blocked' ? 'error' : 'warn')}>
+              {fitment.status === 'blocked' ? 'Known conflict — resolve it before ordering.' : 'Needs verification — this build is not cleared for ordering.'}
+            </div>
+            {fitment.checks.filter(check => check.key === 'head_bore').map(check => <p key={check.key} style={{ fontSize: '12px', lineHeight: 1.5, color: check.status === 'blocked' ? '#ff8888' : '#ddd' }}>{check.message}</p>)}
+            <details><summary style={{ cursor: 'pointer', color: '#ddd', fontSize: '12px', padding: '10px 0' }}>Review {fitment.checks.filter(check => check.status === 'unknown').length} open checks</summary>
+              {fitment.checks.map(check => <div key={check.key} style={{ marginBottom: '12px', fontSize: '12px', lineHeight: 1.5, color: '#bbb' }}>
+                <strong>{check.status === 'checked' ? 'RECORDED CHECK' : check.status === 'blocked' ? 'CONFLICT' : 'TO VERIFY'}</strong>: {check.message}
+                {check.sourceUrl && <div><a href={check.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: accent }}>Manufacturer source ↗</a></div>}
+              </div>)}
+            </details>
+            {fitment.required.length > 0 && <><div style={{ ...styles.section, marginTop: '12px' }}>Plan These Too</div>
+              <ul style={{ paddingLeft: '18px', color: '#bbb', fontSize: '12px', lineHeight: 1.6 }}>{fitment.required.map((item, index) => <li key={index} style={{ marginBottom: '10px' }}>{item.message}{item.sourceUrl && <> <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: accent }}>Source ↗</a></>}</li>)}</ul>
+            </>}
+          </section>
+          <div style={styles.section}>Mechanical Checks</div>
           {issues.length === 0 ? (
             <div style={{ ...styles.issue('info'), borderLeftColor: '#33cc66', background: '#152a1a', color: '#88dd88' }}>
               No issues found by the current checks. Confirm fitment and supporting parts before buying.
@@ -1317,6 +1447,7 @@ export default function EngineBuilder() {
             issues.map((i, idx) => (
               <div key={idx} style={styles.issue(i.severity)}>
                 <strong>{i.severity.toUpperCase()}</strong>: {i.message}
+                {i.sourceUrl && <div><a href={i.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#ddd' }}>Manufacturer source ↗</a></div>}
               </div>
             ))
           )}
@@ -1325,7 +1456,7 @@ export default function EngineBuilder() {
           <p style={{ fontSize: '11px', color: '#bbb', lineHeight: 1.5 }}>Retailer searches, not verified product matches. Prices are estimates. Confirm part numbers, fitment, quantities, and included components with the retailer.</p>
           {['block', 'heads', 'cam', 'intake', 'forcedInduction', 'fuel'].map(key => {
             const part = (CAT[key] || []).find(p => p.id === build[key]);
-            if (!part?.shopSearch || (key === 'block' && !hasConsistentDisplacement(part))) return null;
+            if (!canShopPart(build, key, part)) return null;
             const label = { block: 'BLOCK', heads: 'HEADS', cam: 'CAM', intake: 'INTAKE', forcedInduction: 'BOOST', fuel: 'FUEL' }[key];
             return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px', padding: '6px 8px', background: '#15151a', border: '1px solid #1a1a1e' }}>
