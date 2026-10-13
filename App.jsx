@@ -85,7 +85,7 @@ const CATALOG_LS = {
   block: [
     { id: 'b_lq4', name: '6.0L Iron Block (LQ4)', displacement: 364, bore: 4.0, stroke: 3.622, compression: 9.9, maxBoost: 25, cost: 1200, brand: 'GM OEM', shopSearch: 'LQ4 6.0L LS iron engine block', notes: 'Cheap, heavy, bulletproof for boost.' },
     { id: 'b_ls3', name: '6.2L Aluminum Block (LS3)', displacement: 376, bore: 4.065, stroke: 3.622, compression: 10.7, maxBoost: 18, cost: 2800, brand: 'GM Performance', shopSearch: 'GM Performance LS3 6.2L aluminum engine block', notes: 'Stock LS3 spec. Light and strong.' },
-    { id: 'b_lsx', name: '427ci Aftermarket Iron (LSX)', displacement: 427, bore: 4.125, stroke: 4.0, compression: 9.5, maxBoost: 40, cost: 6500, brand: 'GM Performance', shopSearch: 'GM Performance LSX454R race iron engine block', notes: 'Purpose-built race block. Handles anything.' },
+    { id: 'b_lsx', name: '427ci Aftermarket Iron (LSX)', displacement: 427, bore: 4.125, stroke: 4.0, compression: 9.5, maxBoost: 40, cost: 6500, brand: 'GM Performance', shopSearch: 'GM Performance LSX bare engine block', notes: '427ci build requires a matching rotating assembly; search results are not a complete engine.' },
     { id: 'b_dart', name: '441ci Tall-Deck Iron', displacement: 441, bore: 4.185, stroke: 4.0, compression: 9.2, maxBoost: 45, cost: 8500, brand: 'Dart', shopSearch: 'Dart LS Next iron tall deck engine block', notes: 'Max LS platform. Borderline insane.' },
   ],
   heads: [
@@ -355,9 +355,25 @@ function getStorageAdapter() {
 }
 
 function sanitizeBuild(raw) {
-  const fam = ENGINE_FAMILIES[raw?.family]?.id || 'ls';
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const fam = Object.hasOwn(ENGINE_FAMILIES, source.family) ? source.family : 'ls';
   const def = ENGINE_FAMILIES[fam].defaultBuild;
-  return { family: fam, ...def, ...(raw || {}) };
+  const catalog = getCatalog(fam);
+  const result = { family: fam, ...def };
+  for (const key of ['block', 'heads', 'cam', 'intake', 'forcedInduction', 'fuel']) {
+    if (catalog[key].some(part => part.id === source[key])) result[key] = source[key];
+  }
+  if (typeof source.name === 'string') result.name = source.name.slice(0, 120);
+  if (typeof source.id === 'string' || Number.isFinite(source.id)) result.id = source.id;
+  const peak = peakStats(simulateDyno(result));
+  return { ...result, peakHp: peak.hp, peakTq: peak.tq, cost: totalCost(result) };
+}
+
+function hasConsistentDisplacement(block) {
+  if (!block) return false;
+  const measured = Math.PI / 4 * block.bore ** 2 * block.stroke * 8;
+  return Number.isFinite(measured) && block.displacement > 0 &&
+    Math.abs(measured - block.displacement) / block.displacement <= 0.02;
 }
 
 // =====================================================
@@ -391,6 +407,15 @@ function checkCompatibility(build) {
   const cam = CAT.cam.find(c => c.id === build.cam);
   const fi = CAT.forcedInduction.find(f => f.id === build.forcedInduction);
   const block = CAT.block.find(b => b.id === build.block);
+
+  for (const key of ['block', 'heads', 'cam', 'intake', 'forcedInduction', 'fuel']) {
+    if (!CAT[key].some(part => part.id === build[key])) {
+      issues.push({ severity: 'error', message: `Select a valid ${key} for this engine family.` });
+    }
+  }
+  if (block && !hasConsistentDisplacement(block)) {
+    issues.push({ severity: 'error', message: 'This block has inconsistent displacement and bore/stroke data. Power estimates and shopping links are unavailable until its specifications are verified.' });
+  }
 
   // Port matching
   if (head && intake && intake.flowMatch !== 'any' && intake.flowMatch !== head.portStyle) {
@@ -475,6 +500,7 @@ function simulateDyno(build) {
   const fuel = CAT.fuel.find(f => f.id === build.fuel);
 
   if (!block || !head || !cam || !intake || !fi || !fuel) return [];
+  if (checkCompatibility(build).some(issue => issue.severity === 'error')) return [];
 
   const disL = block.displacement * 0.0163871;
   const isCoyote = build.family === 'coyote';
@@ -563,7 +589,17 @@ function peakStats(dyno) {
   return { hp: pH.hp, tq: pT.tq, hpRpm: pH.rpm, tqRpm: pT.rpm };
 }
 
+function combineDynoCurves(dyno, comparison) {
+  const byRpm = new Map(comparison.map(point => [point.rpm, point]));
+  return dyno.map(point => {
+    const other = byRpm.get(point.rpm);
+    return { ...point, ...(other ? { hp_b: other.hp, tq_b: other.tq } : {}) };
+  });
+}
+
 function getShopUrl(retailer, query) {
+  if (!['jegs', 'summit'].includes(retailer)) throw new Error('Unknown retailer');
+  if (typeof query !== 'string' || !query.trim()) throw new Error('Missing search query');
   const q = encodeURIComponent(query);
   return retailer === 'jegs'
     ? `https://www.jegs.com/SearchResult/1/N-1z13yq0?Ntt=${q}`
@@ -593,7 +629,7 @@ function Engine3D({ build }) {
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     mount.appendChild(renderer.domElement);
 
     const ambient = new THREE.AmbientLight(0x606070, 0.65);
@@ -684,6 +720,8 @@ function Engine3D({ build }) {
       }
     };
     window.addEventListener('resize', onResize);
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onResize) : null;
+    resizeObserver?.observe(mount);
 
     return () => {
       cancelAnimationFrame(frameId);
@@ -695,6 +733,7 @@ function Engine3D({ build }) {
       renderer.domElement.removeEventListener('touchend', onTouchEnd);
       renderer.domElement.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('resize', onResize);
+      resizeObserver?.disconnect();
       if (mount?.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
       renderer.dispose();
     };
@@ -1024,6 +1063,14 @@ function Engine3D({ build }) {
 // MAIN APP
 // =====================================================
 export default function EngineBuilder() {
+  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1100);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1099px)');
+    const update = () => setCompact(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const [family, setFamily] = useState('ls');
   const [build, setBuild] = useState({ family: 'ls', ...ENGINE_FAMILIES.ls.defaultBuild });
   const [savedBuilds, setSavedBuilds] = useState([]);
@@ -1066,10 +1113,7 @@ export default function EngineBuilder() {
   const comparePeak = useMemo(() => peakStats(compareDyno), [compareDyno]);
 
   // FIX: memoize chartData to avoid recalculation on every render
-  const chartData = useMemo(() => dyno.map((d, i) => ({
-    rpm: d.rpm, hp: d.hp, tq: d.tq,
-    ...(compareDyno[i] ? { hp_b: compareDyno[i].hp, tq_b: compareDyno[i].tq } : {}),
-  })), [dyno, compareDyno]);
+  const chartData = useMemo(() => combineDynoCurves(dyno, compareDyno), [dyno, compareDyno]);
 
   const saveBuild = async () => {
     const id = `build:${Date.now()}`;
@@ -1102,12 +1146,12 @@ export default function EngineBuilder() {
     app: { fontFamily: '"JetBrains Mono","SF Mono","Roboto Mono",monospace', background: '#0a0a0c', color: '#e8e8ea', minHeight: '100vh' },
     header: { borderBottom: `1px solid ${accent}44`, padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(180deg,#111114 0%,#0a0a0c 100%)', boxShadow: `0 1px 24px ${accent}22` },
     logo: { fontFamily: '"Rajdhani",sans-serif', fontWeight: 700, fontSize: '26px', letterSpacing: '0.1em', color: accent, textShadow: `0 0 20px ${accent}88` },
-    familySwitcher: { display: 'flex', gap: '6px' },
+    familySwitcher: { display: 'flex', gap: '6px', flexWrap: 'wrap' },
     familyBtn: (active, fam) => ({ padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '12px', border: `1px solid ${active ? ENGINE_FAMILIES[fam].accent : '#2a2a2e'}`, background: active ? ENGINE_FAMILIES[fam].accent + '22' : 'transparent', color: active ? ENGINE_FAMILIES[fam].accent : '#555', transition: 'all 0.15s', boxShadow: active ? `0 0 12px ${ENGINE_FAMILIES[fam].accent}55` : 'none' }),
-    main: { display: 'grid', gridTemplateColumns: '320px 1fr 360px', gap: 0, height: 'calc(100vh - 60px)' },
+    main: { display: 'grid', gridTemplateColumns: compact ? 'minmax(0, 1fr)' : '320px minmax(0, 1fr) 360px', gap: 0, height: compact ? 'auto' : 'calc(100vh - 60px)' },
     panel: { background: '#0c0c0f', borderRight: '1px solid #1a1a1e', overflowY: 'auto', padding: '16px' },
     rightPanel: { background: '#0c0c0f', borderLeft: '1px solid #1a1a1e', overflowY: 'auto', padding: '16px' },
-    canvas: { position: 'relative', background: '#0a0a0c', overflow: 'hidden' },
+    canvas: { position: 'relative', background: '#0a0a0c', overflow: 'hidden', minWidth: 0, height: compact ? '780px' : undefined },
     section: { fontSize: '11px', fontWeight: 700, letterSpacing: '0.2em', color: '#666', marginBottom: '8px', borderBottom: '1px solid #1a1a1e', paddingBottom: '6px' },
     tab: (active) => ({ flex: '1', padding: '8px 10px', background: active ? accent : '#15151a', color: active ? '#0a0a0c' : '#666', border: `1px solid ${active ? accent : '#1a1a1e'}`, cursor: 'pointer', fontSize: '10px', fontWeight: 700, transition: 'all 0.12s', boxShadow: active ? `0 0 8px ${accent}66` : 'none' }),
     card: (sel) => ({ position: 'relative', padding: '12px', marginBottom: '6px', background: sel ? `linear-gradient(135deg,${accent}18 0%,#15151a 100%)` : '#15151a', border: `1px solid ${sel ? accent : '#222226'}`, boxShadow: sel ? `0 0 18px ${accent}44, inset 0 0 24px ${accent}0a` : 'none', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s' }),
@@ -1121,7 +1165,7 @@ export default function EngineBuilder() {
     <div style={styles.app}>
       <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
 
-      <div style={styles.header}>
+      <div style={{ ...styles.header, flexWrap: 'wrap', gap: '12px', padding: compact ? '14px 16px' : styles.header.padding }}>
         <div style={styles.logo}>⛽ DYNO//FORGE</div>
         <div style={styles.familySwitcher}>
           {Object.values(ENGINE_FAMILIES).map(f => (
@@ -1164,7 +1208,9 @@ export default function EngineBuilder() {
               else if (activeTab === 'forcedInduction' && maxBoost) barPct = maxBoost ? part.boost / maxBoost : 0;
               else if (activeTab === 'fuel' && maxFlowRate) barPct = part.flowRate / maxFlowRate;
               return (
-                <div key={part.id} style={styles.card(sel)} onClick={() => setBuild({ ...build, [activeTab]: part.id })}>
+                <div key={part.id} style={styles.card(sel)}>
+                  <button type="button" aria-pressed={sel} aria-label={`Select ${part.name}`} onClick={() => setBuild({ ...build, [activeTab]: part.id })}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, background: 'transparent', cursor: 'pointer' }} />
                   <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '3px', paddingRight: '52px' }}>{part.name}</div>
                   <div style={{ fontSize: '11px', color: sel ? '#aaa' : '#666', marginBottom: '6px' }}>
                     {activeTab === 'block' && `${part.displacement}ci · ${part.bore}" × ${part.stroke}"`}
@@ -1176,7 +1222,9 @@ export default function EngineBuilder() {
                   </div>
                   {part.notes && (
                     <div style={{ fontSize: '10px', color: sel ? '#888' : '#444', fontStyle: 'italic', marginBottom: barPct > 0 ? '8px' : 0 }}>
-                      {part.notes}
+                      {activeTab === 'block' && !hasConsistentDisplacement(part)
+                        ? <span style={{ color: '#ff8888' }}>Unverified specifications. Power estimates and block shopping are unavailable.</span>
+                        : part.notes}
                     </div>
                   )}
                   {barPct > 0 && (
@@ -1184,21 +1232,21 @@ export default function EngineBuilder() {
                       <div style={{ height: '100%', width: `${barPct * 100}%`, background: sel ? accent : '#333', borderRadius: '1px', transition: 'width 0.3s' }} />
                     </div>
                   )}
-                  {part.shopSearch && (
-                    <div style={{ display: 'flex', gap: '4px', marginTop: barPct > 0 ? 0 : '8px' }}>
+                  {part.shopSearch && (activeTab !== 'block' || hasConsistentDisplacement(part)) && (
+                    <div style={{ position: 'relative', display: 'flex', gap: '8px', marginTop: barPct > 0 ? 0 : '8px' }}>
                       <a href={getShopUrl('jegs', part.shopSearch)} target="_blank" rel="noopener noreferrer"
-                        style={{ flex: 1, padding: '4px 0', background: '#181808', border: '1px solid #ffcc0033', color: '#ffcc00', fontSize: '9px', fontWeight: 700, textAlign: 'center', textDecoration: 'none', letterSpacing: '0.12em' }}
+                        style={{ flex: 1, minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0', background: '#181808', border: '1px solid #ffcc0033', color: '#ffcc00', fontSize: '12px', fontWeight: 700, textAlign: 'center', textDecoration: 'none', letterSpacing: '0.12em' }}
                         onClick={e => e.stopPropagation()}>
                         JEGS ↗
                       </a>
                       <a href={getShopUrl('summit', part.shopSearch)} target="_blank" rel="noopener noreferrer"
-                        style={{ flex: 1, padding: '4px 0', background: '#180d08', border: '1px solid #e85c0033', color: '#e87020', fontSize: '9px', fontWeight: 700, textAlign: 'center', textDecoration: 'none', letterSpacing: '0.12em' }}
+                        style={{ flex: 1, minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0', background: '#180d08', border: '1px solid #e85c0033', color: '#e87020', fontSize: '12px', fontWeight: 700, textAlign: 'center', textDecoration: 'none', letterSpacing: '0.12em' }}
                         onClick={e => e.stopPropagation()}>
                         SUMMIT ↗
                       </a>
                     </div>
                   )}
-                  <div style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '12px', color: accent, fontWeight: 700 }}>
+                  <div style={{ pointerEvents: 'none', position: 'absolute', top: '12px', right: '12px', fontSize: '12px', color: accent, fontWeight: 700 }}>
                     ${part.cost.toLocaleString()}
                   </div>
                 </div>
@@ -1214,12 +1262,12 @@ export default function EngineBuilder() {
             <div style={{ position: 'absolute', top: '16px', left: '16px', fontSize: '10px', color: '#666', background: 'rgba(0,0,0,0.5)', padding: '8px 12px', borderRadius: '4px' }}>
               DRAG TO ROTATE · SCROLL TO ZOOM
             </div>
-            <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px', display: 'flex', gap: '10px' }}>
+            <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', pointerEvents: 'none' }}>
               {[
-                { label: 'PEAK HP', value: peak.hp, sub: `@ ${peak.hpRpm} RPM` },
-                { label: 'PEAK TQ', value: `${peak.tq}`, sub: `@ ${peak.tqRpm} RPM` },
-                { label: 'COMPRESSION', value: `${calculateCR(build.block, build.heads, CAT)}:1`, sub: `${CAT.block.find(b=>b.id===build.block)?.displacement || '–'}ci` },
-                { label: 'BUILD COST', value: `$${(cost / 1000).toFixed(1)}k`, sub: 'parts only' },
+                { label: 'EST. PEAK HP', value: dyno.length ? peak.hp : '—', sub: dyno.length ? `@ ${peak.hpRpm} RPM` : 'Resolve errors first' },
+                { label: 'EST. PEAK TQ', value: dyno.length ? peak.tq : '—', sub: dyno.length ? `lb-ft @ ${peak.tqRpm} RPM` : 'Resolve errors first' },
+                { label: 'EST. COMPRESSION', value: hasConsistentDisplacement(CAT.block.find(part => part.id === build.block)) ? `${calculateCR(build.block, build.heads, CAT)}:1` : '—', sub: 'Catalog approximation' },
+                { label: 'EST. PARTS COST', value: `$${(cost / 1000).toFixed(1)}k`, sub: 'Excludes labor and supporting parts' },
               ].map(({ label, value, sub }) => (
                 <div key={label} style={{ flex: 1, background: 'rgba(8,8,10,0.85)', padding: '12px 14px', borderTop: `2px solid ${accent}`, boxShadow: `0 0 20px ${accent}33, inset 0 0 30px ${accent}08`, backdropFilter: 'blur(4px)' }}>
                   <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.18em', color: '#888', marginBottom: '4px' }}>{label}</div>
@@ -1231,8 +1279,9 @@ export default function EngineBuilder() {
           </div>
 
           <div style={{ height: '45%', padding: '16px', background: '#0c0c0f', borderTop: `1px solid ${accent}22` }}>
-            <div style={styles.section}>Dyno {compareWith && `· vs "${compareWith.name}" (${comparePeak.hp} hp / ${comparePeak.tq} tq)`}</div>
-            <ResponsiveContainer width="100%" height="90%">
+            <div style={styles.section}>Estimated Dyno {compareWith && `· vs "${compareWith.name}" (${compareDyno.length ? `${comparePeak.hp} hp / ${comparePeak.tq} lb-ft` : 'estimate unavailable'})`}</div>
+            <div style={{ fontSize: '11px', color: '#bbb', marginBottom: '8px' }}>Unvalidated planning estimates, not measured dyno results. Calibration is still in progress.</div>
+            <ResponsiveContainer width="100%" height="75%">
               <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="hpGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1262,7 +1311,7 @@ export default function EngineBuilder() {
           <div style={styles.section}>Compatibility</div>
           {issues.length === 0 ? (
             <div style={{ ...styles.issue('info'), borderLeftColor: '#33cc66', background: '#152a1a', color: '#88dd88' }}>
-              ✓ No issues. This combo is valid.
+              No issues found by the current checks. Confirm fitment and supporting parts before buying.
             </div>
           ) : (
             issues.map((i, idx) => (
@@ -1273,9 +1322,10 @@ export default function EngineBuilder() {
           )}
 
           <div style={{ ...styles.section, marginTop: '20px' }}>Shop This Build</div>
+          <p style={{ fontSize: '11px', color: '#bbb', lineHeight: 1.5 }}>Retailer searches, not verified product matches. Prices are estimates. Confirm part numbers, fitment, quantities, and included components with the retailer.</p>
           {['block', 'heads', 'cam', 'intake', 'forcedInduction', 'fuel'].map(key => {
             const part = (CAT[key] || []).find(p => p.id === build[key]);
-            if (!part?.shopSearch) return null;
+            if (!part?.shopSearch || (key === 'block' && !hasConsistentDisplacement(part))) return null;
             const label = { block: 'BLOCK', heads: 'HEADS', cam: 'CAM', intake: 'INTAKE', forcedInduction: 'BOOST', fuel: 'FUEL' }[key];
             return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px', padding: '6px 8px', background: '#15151a', border: '1px solid #1a1a1e' }}>
@@ -1284,11 +1334,11 @@ export default function EngineBuilder() {
                   <span style={{ fontSize: '10px', color: '#888', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{part.brand && <span style={{ color: accent, marginRight: '4px' }}>{part.brand}</span>}{part.name}</span>
                 </div>
                 <a href={getShopUrl('jegs', part.shopSearch)} target="_blank" rel="noopener noreferrer"
-                  style={{ flexShrink: 0, padding: '4px 7px', background: '#181808', border: '1px solid #ffcc0044', color: '#ffcc00', fontSize: '9px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.08em' }}>
+                  style={{ flexShrink: 0, minHeight: '44px', display: 'flex', alignItems: 'center', padding: '4px 10px', background: '#181808', border: '1px solid #ffcc0044', color: '#ffcc00', fontSize: '12px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.08em' }}>
                   JEGS
                 </a>
                 <a href={getShopUrl('summit', part.shopSearch)} target="_blank" rel="noopener noreferrer"
-                  style={{ flexShrink: 0, padding: '4px 7px', background: '#180d08', border: '1px solid #e85c0044', color: '#e87020', fontSize: '9px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.08em' }}>
+                  style={{ flexShrink: 0, minHeight: '44px', display: 'flex', alignItems: 'center', padding: '4px 10px', background: '#180d08', border: '1px solid #e85c0044', color: '#e87020', fontSize: '12px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.08em' }}>
                   SUMMIT
                 </a>
               </div>
@@ -1296,7 +1346,7 @@ export default function EngineBuilder() {
           })}
           <div style={{ ...styles.section, marginTop: '20px' }}>Save / Compare</div>
           <input
-            type="text" value={build.name} onChange={e => setBuild({ ...build, name: e.target.value })}
+            type="text" aria-label="Build name" value={build.name} onChange={e => setBuild({ ...build, name: e.target.value })}
             placeholder="Build name"
             style={{ width: '100%', padding: '8px', background: '#15151a', border: '1px solid #1a1a1e', color: '#e8e8ea', marginBottom: '8px', boxSizing: 'border-box' }}
           />
@@ -1328,3 +1378,4 @@ export default function EngineBuilder() {
     </div>
   );
 }
+
